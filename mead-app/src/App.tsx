@@ -31,6 +31,7 @@ export default function App() {
   const [recipe, setRecipe] = useState<Recipe>(initial.recipe);
   const [units, setUnits] = useState<UnitSystem>(initial.units);
   const [modal, setModal] = useState<null | 'proof' | 'sources' | 'calc'>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
 
   useEffect(() => {
     try {
@@ -70,7 +71,14 @@ export default function App() {
           </div>
           <button className="btn-ghost" onClick={() => setModal('calc')}>ABV calc</button>
           <button className="btn-ghost" onClick={() => setModal('sources')}>Sources</button>
-          <button className="btn-ghost" onClick={() => confirm('Reset to the example recipe?') && setRecipe(DEFAULT_RECIPE)}>Reset</button>
+          {confirmReset ? (
+            <span className="flex items-center gap-1 text-xs">
+              <button className="btn-primary" onClick={() => { setRecipe(DEFAULT_RECIPE); setConfirmReset(false); }}>Reset recipe</button>
+              <button className="btn-ghost" onClick={() => setConfirmReset(false)}>Cancel</button>
+            </span>
+          ) : (
+            <button className="btn-ghost" onClick={() => setConfirmReset(true)}>Reset</button>
+          )}
         </div>
       </header>
 
