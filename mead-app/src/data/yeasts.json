@@ -1,0 +1,13 @@
+[
+  { "id": "ec1118", "name": "Lalvin EC-1118", "maker": "Lallemand", "tolerance": 18, "nDemand": "low", "tempC": [10, 30], "notes": "Neutral, very robust; strips delicate aromatics. Good restart yeast.", "source": ["scott-handbook"] },
+  { "id": "k1v1116", "name": "Lalvin K1-V1116", "maker": "Lallemand", "tolerance": 18, "nDemand": "medium", "tempC": [10, 35], "notes": "Fruity esters at cool temps; tolerant of high gravity. Killer factor.", "source": ["scott-handbook", "meadmaderight"] },
+  { "id": "71b", "name": "Lalvin 71B", "maker": "Lallemand", "tolerance": 14, "nDemand": "medium", "tempC": [15, 30], "notes": "Metabolises part of the malic acid — softens tart fruit. Drink young.", "source": ["scott-handbook", "meadmaderight"] },
+  { "id": "d47", "name": "Lalvin ICV-D47", "maker": "Lallemand", "tolerance": 14, "nDemand": "medium", "tempC": [15, 20], "notes": "Rich mouthfeel; fusels above 20 °C — keep cool.", "source": ["scott-handbook", "meadmaderight"] },
+  { "id": "qa23", "name": "Lalvin QA23", "maker": "Lallemand", "tolerance": 16, "nDemand": "low", "tempC": [15, 32], "notes": "Clean, citrus/tropical thiols; good for light traditionals.", "source": ["scott-handbook"] },
+  { "id": "dv10", "name": "Lalvin DV10", "maker": "Lallemand", "tolerance": 18, "nDemand": "low", "tempC": [10, 35], "notes": "Clean, robust; respects varietal honey.", "source": ["scott-handbook"] },
+  { "id": "rc212", "name": "Lalvin RC212", "maker": "Lallemand", "tolerance": 16, "nDemand": "medium", "tempC": [15, 30], "notes": "Red-fruit and spice; good for dark berry melomels.", "source": ["scott-handbook"] },
+  { "id": "bm4x4", "name": "Lalvin BM 4X4", "maker": "Lallemand", "tolerance": 16, "nDemand": "high", "tempC": [18, 28], "notes": "Big body and fruit; demands nitrogen.", "source": ["scott-handbook"] },
+  { "id": "m05", "name": "Mangrove Jack's M05", "maker": "Mangrove Jack's", "tolerance": 18, "nDemand": "medium", "tempC": [15, 30], "notes": "Purpose-built mead strain; dry and clean.", "source": ["practice"] },
+  { "id": "wlp720", "name": "White Labs WLP720 Sweet Mead", "maker": "White Labs", "tolerance": 15, "nDemand": "high", "tempC": [21, 24], "notes": "Liquid; leaves sweetness, slower to finish.", "source": ["practice"] },
+  { "id": "kveik", "name": "Kveik (Voss)", "maker": "Various", "tolerance": 16, "nDemand": "high", "tempC": [25, 40], "notes": "Ferments hot and fast without fusels; orange-peel esters.", "source": ["practice"] }
+]

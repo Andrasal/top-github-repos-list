@@ -1,0 +1,459 @@
+# Mead App — Master Specification (`mead_app_spec.md`)
+
+> **Status:** Source of truth. Any change to math, constants, data shape or rules
+> MUST be made here first, then in code. Every constant in code carries a
+> `// SPEC §x.y` tag pointing back to this file, and a `source` id from the
+> citation registry (§9).
+
+---
+
+## 0. Decisions (from the initialization interview)
+
+| Question | Decision |
+|---|---|
+| Tech stack | **React 18 + TypeScript + Vite**. Pure-TS math core (`src/lib`), unit-tested with **Vitest**. |
+| Units | **Metric default** (L, kg, g, g/L) with an **Imperial toggle** (US gal, lb, oz, oz/gal). All math runs in SI internally; conversion happens only at the UI boundary. |
+| Data | **Local JSON database** (`src/data/*.json`), versioned, every entry carrying a `source` reference. No network calls. |
+| UI framework | **Tailwind CSS v3**. |
+
+---
+
+## 1. Architecture
+
+```
+mead-app/
+├── mead_app_spec.md          ← this file (source of truth)
+├── src/
+│   ├── lib/                  ← PURE functions, no React, no DOM, 100% testable
+│   │   ├── constants.ts      ← physical/enological constants (§2)
+│   │   ├── sources.ts        ← citation registry (§9)
+│   │   ├── units.ts          ← SI ⇄ Imperial conversions (§2.3)
+│   │   ├── gravity.ts        ← Plato/Brix ⇄ SG, blending (§3)
+│   │   ├── abv.ts            ← Alternative ABV equation (§4)
+│   │   ├── must.ts           ← mass-balance must solver, fruit displacement (§5)
+│   │   ├── fermentation.ts   ← FG prediction, sweetness, BJCP strength, sugar breaks (§6)
+│   │   ├── nutrients.ts      ← YAN requirement + SNA protocols (§7)
+│   │   ├── flavor.ts         ← Flavor Intelligence Engine (§8)
+│   │   ├── recipe.ts         ← orchestrator: Recipe → full Analysis
+│   │   └── __tests__/        ← Vitest suites
+│   ├── data/                 ← honeys, fruits, spices, yeasts, pairings (JSON)
+│   ├── components/           ← React UI
+│   └── App.tsx
+```
+
+**Data flow:** `Recipe` (user state, SI units) → `analyzeRecipe()` → `Analysis`
+(must, gravity, ABV, YAN, schedule, advisories, citations) → UI. The UI never
+does math.
+
+---
+
+## 2. Constants
+
+### 2.1 Physical constants
+
+| Symbol | Value | Meaning | Source |
+|---|---|---|---|
+| `RHO_WATER_20C` | 0.99820 kg/L | Density of water at 20 °C; SG is referenced to this | `crc-water` |
+| `RHO_ETHANOL` | 0.794 g/mL | Density of ethanol at 20 °C (used in Alt ABV) | `hall-1995` |
+| `RHO_HONEY_DEFAULT` | **1.42 kg/L** (range 1.38–1.45) | Honey density at ~17–18 % moisture | `nhb-honey`, `white-1975` |
+| `HONEY_SOLIDS_DEFAULT` | 0.82 (82 °Brix) | Dissolved solids fraction of honey (moisture ≈ 17–18 %) | `nhb-honey`, `white-1975` |
+| `RHO_SUCROSE_SOLID` | 1.587 kg/L | Crystalline sucrose (only for dry-volume display) | `crc-sucrose` |
+| `RHO_FRUIT_WHOLE` | 1.05 kg/L | Whole fruit bulk density for displacement (berries/stone fruit ~1.0–1.1) | `practice` |
+| `RHO_FRUIT_INSOLUBLE` | 1.30 kg/L | Insoluble pulp/skin solids | `practice` |
+
+**Honey extract calibration (discovered in the Step 4 skeptic pass).** Treating
+honey's ~82 % refractometer solids as if they were sucrose predicts a honey
+density of ≈ 1.44 kg/L and ≈ 37.9 PPG — both too high versus the measured
+≈ 1.42 kg/L and the empirical 35–37 PPG. The solver therefore uses honey's
+**sucrose-equivalent extract**, derived from its measured density by inverting
+the Lincoln equation:
+
+```
+E_honey = sgToPlato(ρ_honey / ρ_water) / 100      → ρ = 1.42 ⇒ E ≈ 0.797
+```
+
+One parameter (density) now drives both volume conversion and sugar
+contribution, and reproduces ≈ 36.5 PPG (unit tested). The `solids` field in
+`honeys.json` is kept as a display value only.
+
+### 2.2 Enological constants
+
+| Symbol | Value | Meaning | Source |
+|---|---|---|---|
+| `DRY_FG_DEFAULT` | 0.996 | Typical terminal gravity of a fully dry mead (alcohol < water density) | `practice` |
+| `POINTS_TO_RS` | 2.6 g/L per gravity point | Residual sugar estimate above dry baseline (≈ 1 °Bx ≈ 10.3 g/L ≈ 4 pts) | `practice` |
+| `FERMAID_O_YAN` | 40 mg N/L per 1 g/L (label) | Scott Labs label value | `scott-handbook` |
+| `ORGANIC_N_MULTIPLIER` | 4 | TOSNA: organic N is ~4× as effective as inorganic → **effective 160 mg/L per g/L** | `tosna` |
+| `FERMAID_K_YAN` | 100 mg N/L per 1 g/L | Scott Labs label | `scott-handbook` |
+| `DAP_YAN` | 210 mg N/L per 1 g/L | DAP is 21.2 % N by mass | `scott-handbook` |
+| `GOFERM_RATIO` | 1.25 g Go-Ferm per g yeast | Rehydration nutrient | `scott-handbook`, `tosna` |
+| `DAP_LEGAL_MAX` | 0.968 g/L | US TTB 27 CFR 24.246 (8 lb / 1000 gal) | `ttb-24-246` |
+| `DAP_ABV_CUTOFF` | 9 % ABV | Yeast stop taking up inorganic N | `scott-handbook` |
+
+### 2.3 Unit conversions (exact)
+
+| From → To | Factor |
+|---|---|
+| US gal → L | 3.785411784 |
+| lb → kg | 0.45359237 |
+| oz → g | 28.349523125 |
+| oz/gal → g/L | 7.489151707 |
+| PPG ⇄ PKL | PPG = PKL × (0.45359237 / 3.785411784) = PKL × 0.119826 |
+
+*PKL* = gravity points × litres / kg (the metric analogue of PPG).
+
+---
+
+## 3. Gravity ⇄ Sugar (gravity.ts)
+
+### 3.1 Plato/Brix → SG (Lincoln equation)
+```
+SG = 1 + P / (258.6 − (P / 258.2) × 227.1)
+```
+Valid 0–40 °P, error < 0.0005 SG vs. sucrose tables. (`lincoln`, `asbc`)
+
+### 3.2 SG → Plato — the exact algebraic inverse of 3.1
+Let k = 227.1/258.2 = 0.879551, x = SG − 1:
+```
+P = 258.6 × x / (1 + k × x)
+```
+We use the exact inverse (not the ASBC cubic) so that `sgToPlato(platoToSg(P)) ≡ P`;
+round-tripping must never drift. Brix ≡ Plato for our purposes (difference < 0.05).
+
+### 3.3 Blending two liquids
+Mass-based (exact under the Plato model):
+```
+m_i = V_i × SG_i × ρ_w ;  S_i = m_i × P_i / 100
+P_mix = 100 × ΣS_i / Σm_i ;  SG_mix = platoToSg(P_mix)
+V_mix = Σm_i / (SG_mix × ρ_w)
+```
+ABV of a blend (alcohol is conserved by volume to ±0.2 %): `ABV_mix = ΣV_i·ABV_i / ΣV_i`.
+
+---
+
+## 4. ABV — The Alternative Equation (abv.ts) — STRICTLY ENFORCED
+
+```
+ABV(%) = [ 76.08 × (OG − FG) / (1.775 − OG) ] × [ FG / 0.794 ]
+```
+
+* The first bracket is **alcohol by weight** (ABW). The second converts ABW →
+  ABV via the ratio of the finished mead's density (≈ FG) to ethanol's
+  density (0.794 g/mL). That conversion is exact physics:
+  `ABV = ABW × ρ_mead / ρ_ethanol`.
+* The ABW term comes from Balling's fermentation stoichiometry
+  (2.0665 g extract → 1 g ethanol + 0.9565 g CO₂ + 0.11 g yeast), re-expressed
+  in SG by **Michael L. Hall, "Brew by the Numbers — Add Up What's in Your
+  Beer", *Zymurgy*, Summer 1995**. The `(1.775 − OG)` denominator is what makes
+  the equation non-linear: it corrects for the growing mass-per-point of extract
+  at high gravity, which is exactly where the linear `131.25` rule
+  under-reports (it is a low-gravity beer approximation).
+* Popularised as the "alternate" formula by Brewer's Friend, which recommends
+  it for high-gravity beverages. (`hall-1995`, `brewersfriend-abv`)
+
+**Rules**
+1. The linear `(OG − FG) × 131.25` formula is **never used for any computed
+   value** in the app. It appears only inside the citation panel as a
+   labelled "why not linear" comparison.
+2. Domain: `1.000 ≤ OG < 1.775`, `0.980 ≤ FG ≤ OG`. Out-of-domain → typed error.
+3. Benchmarks (unit tested, tol ±0.005 %):
+
+| OG | FG | Alt ABV % | (Linear, for contrast) |
+|---|---|---|---|
+| 1.050 | 1.010 | 5.3394 | 5.25 |
+| 1.090 | 0.996 | 13.0962 | 12.34 |
+| 1.100 | 1.000 | 14.1954 | 13.13 |
+| 1.120 | 1.000 | 17.5546 | 15.75 |
+| 1.130 | 1.010 | 18.0050 | 15.75 |
+| 1.150 | 1.020 | 20.3289 | 17.06 |
+
+**Inverse (used for FG prediction):** `fgForAbv(OG, ABV)` solves the equation
+for FG by bisection on [0.980, OG] (ABV is strictly decreasing in FG on this
+interval). Tolerance 1e-7.
+
+---
+
+## 5. Must Solver — Sugar, Fruit & Displacement (must.ts)
+
+### 5.1 Model
+The must is a solution of dissolved solids (sugars) in water. We track
+**mass**, not volume, and derive volume from density. Volumes of sugar
+solutions are *not* additive, so we never sum ingredient volumes to get the
+liquid volume.
+
+Inputs (SI): target liquid volume `V_t` (L) — the volume of liquid must
+**after fruit has released its juice** — plus ingredient list:
+
+| Ingredient | Contributes dissolved solids S | Contributes liquid mass | Insoluble |
+|---|---|---|---|
+| Honey (mass m, solids fraction h) | m·h | m | — |
+| Sugar (mass m, purity p) | m·p | m | — |
+| Fruit (mass m, juice Brix B, insoluble fraction i) | m·(1−i)·B/100 | m·(1−i) | m·i |
+| Water (mass W, **unknown**) | 0 | W | — |
+
+### 5.2 Solving for water (target-volume mode)
+```
+M(W) = Σ liquid mass + W ;  S = Σ solids
+P(W) = 100·S / M(W) ;  SG(W) = platoToSg(P(W))
+V(W) = M(W) / (SG(W)·ρ_w)
+Find W ≥ 0 such that V(W) = V_t   (bisection; V is strictly increasing in W)
+```
+If even W = 0 gives V > V_t, the recipe is infeasible: the solver returns
+`W = 0`, the actual volume, and an `overVolume` error.
+
+**Fixed-water mode** is also supported: W given, V and OG derived.
+
+### 5.3 Fruit displacement & fermenter occupancy
+* **Juice displacement:** the fruit's soluble mass `m(1−i)` becomes liquid, so
+  it **replaces** water you would otherwise add.
+* **Initial occupancy** (day 0, fruit intact):
+  `V_occ0 = V(liquid excluding fruit juice) + m_fruit / ρ_fruit_whole`.
+* **Post-breakdown occupancy:** `V_t + m_fruit·i / ρ_insoluble`.
+* **Required fermenter size:** `max(V_occ0, V_occ1) × (1 + headspace)`, with
+  headspace 20 % for traditionals, 30 % when fruit is in primary (cap rises).
+* **Expected recovered volume after racking:**
+  `V_t − m_fruit × retention − V_t × lees_loss` with retention per fruit
+  (default 0.15 L/kg) and lees_loss 5 %.
+
+### 5.3a Edge case: no water
+If W = 0 and the mixture exceeds 85 °P (e.g. a dry-sugar-only recipe), it is
+not a solution: volume = solids/1.587 + remainder/ρ_w (solid phase). This is
+only ever hit at the solver's lower bound and in over-volume detection.
+
+### 5.4 Per-ingredient gravity contribution
+For each ingredient, `ΔOG = OG(all) − OG(all without it, same V_t)`.
+Normalised: `PKL = ΔOG_points × V_t / m` and `PPG = PKL × 0.119826`.
+
+### 5.6 Secondary fruit
+Fruit marked *secondary* is excluded from the measured OG (it isn't in the
+must at pitch). For ABV, the whole batch is re-solved with the **same water**
+and all components ⇒ *effective OG* and final volume. Sugar and alcohol are
+conserved, so `ABV = ABV(effective OG, FG)`. Note: juice lighter than the must
+(e.g. 14 °Bx cherry vs. a 1.094 must) **lowers** the effective OG — it dilutes.
+
+### 5.5 Skeptic-pass benchmark (unit tested)
+**10 L target, 3 kg strawberries (8 °Bx, i = 0.05), 3 kg honey (82 %):**
+* fruit solubles 2.85 kg (0.228 kg sugar), honey 3.00 kg (2.46 kg solids)
+* Water to add must be ≈ 2.7–2.8 L **less** than the honey-only version.
+* Day-0 occupancy ≈ (10 − ~2.75) L + 3/1.05 = 2.86 L ⇒ ≈ 10.1 L — the
+  fermenter must hold ≥ ~13 L with 30 % headspace.
+* Sanity anchor: 1 lb honey in 1 US gal total ⇒ OG ≈ 1.035–1.037 (classic
+  "35 PPG" rule).
+
+---
+
+## 6. Fermentation Model (fermentation.ts)
+
+### 6.1 Predicted FG
+1. `ABV_dry = ABV(OG, DRY_FG)`.
+2. If `ABV_dry ≤ yeast.tolerance` → `FG = DRY_FG` (ferments dry).
+3. Else → `FG = fgForAbv(OG, yeast.tolerance)` (yeast quits, sugar remains).
+4. A user "target FG" (stabilise & back-sweeten, or stop early) overrides.
+
+### 6.2 Sweetness (FG convention used by mead calculators)
+| Dry | Semi-sweet | Sweet | Dessert |
+|---|---|---|---|
+| ≤ 1.006 | 1.006–1.015 | 1.015–1.025 | > 1.025 |
+
+Residual sugar estimate: `RS ≈ max(0, FG − DRY_FG) × 1000 × 2.6 g/L`.
+
+### 6.3 Strength (BJCP 2015 Mead Guidelines)
+Hydromel 3.5–7.5 % · Standard 7.5–14 % · Sack 14–18 % (`bjcp-2015`).
+
+### 6.4 Sugar breaks
+`1/3 break SG = OG − (OG − FG_pred)/3`; `1/2 break = OG − (OG − FG_pred)/2`.
+
+---
+
+## 7. Yeast & Nutrient Kinetics (nutrients.ts)
+
+### 7.1 YAN requirement
+```
+YAN_req (mg N/L) = Brix × 10 × f
+f = 0.75 (Low) · 0.90 (Medium) · 1.25 (High) · 1.50 (Very High)
+```
+Brix = `sgToPlato(OG)`. Example: OG 1.100 → 23.8 °Bx, Medium → 214 ppm.
+(`scott-handbook`, `tosna`, `meadmaderight`)
+
+**Credits:** optional fruit YAN credit = Σ(fruit juice volume × fruit YAN) / V_t.
+Off by default — fruit YAN numbers vary ±50 %, and honey YAN is treated as 0.
+
+### 7.2 Protocols
+All protocols split the requirement over **4 equal additions**:
+
+| Addition | Trigger |
+|---|---|
+| 1 | 24 h after pitch |
+| 2 | 48 h |
+| 3 | 72 h |
+| 4 | 1/3 sugar break (SG from §6.4) **or day 7, whichever comes first** |
+
+| Protocol | Products | Dose maths |
+|---|---|---|
+| **TOSNA 3.0** (default) | Fermaid O only | `FO_total(g) = YAN_req / 160 × V` (160 = 40 × 4 effective organic factor); each dose = FO_total/4 |
+| **Fermaid K + DAP** | K for organic+inorganic, DAP for the rest | YAN split 50 % K / 50 % DAP; K(g) = 0.5·YAN/100·V, DAP(g) = 0.5·YAN/210·V; DAP **only in doses 1–3** (redistributed); dose 4 = K only |
+| **Fermaid O + K** (hybrid) | O doses 1–2, K doses 3–4 | each dose = YAN/4; O at 160, K at 100 mg/L per g/L |
+
+Rehydration: yeast mass = `max(2 g/gal, 0.5 g/L)`; scaled to `1 g/L` when OG > 1.120.
+Go-Ferm = 1.25 × yeast mass, rehydrated in 20 × its mass of 43 °C water.
+
+### 7.3 Guard rails (generate advisories)
+* DAP total > 0.968 g/L → **error** (exceeds US legal limit).
+* DAP scheduled after the 1/3 break or after 9 % ABV → **error**.
+* Fermaid K single dose > 0.5 g/L → warning.
+* YAN_req > 400 ppm → warning: consider step-feeding honey.
+
+---
+
+## 8. Flavor Intelligence Engine (flavor.ts)
+
+A deterministic rule engine: `advise(Analysis) → Advisory[]`, with
+`Advisory = { id, severity: 'info'|'tip'|'warning'|'error', category, title, detail, suggestion?, source[] }`.
+
+### 8.1 Fruit load (melomel)
+`load = Σ fruit kg / V_t (kg/L)`:
+
+| Light | Standard | Heavy | Extreme |
+|---|---|---|---|
+| < 0.15 | 0.15–0.35 | 0.35–0.60 | > 0.60 |
+
+(0.15–0.35 kg/L ≈ 1.25–3 lb/gal, the range Schramm and Piatz suggest for a
+fruit-forward but honey-led melomel.) Heavy → recommend pectic enzyme,
+staged fruit (½ primary, ½ secondary), larger headspace and a cap-punching schedule.
+
+### 8.2 Acid balance
+* Estimated must TA (g/L, tartaric eq.) = Σ fruit juice L × TA_fruit × conv / V_t,
+  with conv: citric → 1.172, malic → 1.119, tartaric → 1.0. Honey contributes
+  ≈ 0.5 g/L (gluconic), treated as a flat base.
+* Target TA by sweetness: Dry 4.5–6 · Semi-sweet 5.5–7 · Sweet 6.5–8 · Dessert 7–9 g/L.
+* `TA < target_min` → tip: add `(target_mid − TA) × V` g acid blend **post-
+  fermentation, to taste via bench trials**.
+* `TA > target_max` with FG ≤ 1.006 → warning: may taste sharp; finish
+  sweeter or deacidify with K₂CO₃ (≈ 1 g/L lowers TA by ≈ 1 g/L).
+* Very low-pH fruit (pH ≤ 3.0) at > 0.2 kg/L → warning: pH crash risk
+  during fermentation, monitor and buffer with K₂CO₃ if pH < 3.2.
+
+### 8.3 Tannin & structure
+* Sweet/dessert finish and no tannic ingredient → tip: 0.1–0.3 g/L wine
+  tannin or 2–4 g/L medium-toast oak cubes to stop it tasting cloying.
+* Strongly tannic fruit (elderberry, black currant, cranberry) > 0.3 kg/L
+  → tip: plan 6–12 months of ageing.
+
+### 8.4 Body (thin-finish detector)
+* ABV < 7.5 (hydromel) and FG ≤ 1.004 → warning: "may finish thin". Suggest:
+  stabilise at 1.006–1.010, a lower-attenuating yeast, 0.05–0.1 g/L tannin,
+  carbonation, or an aromatic varietal honey.
+* Any finish with ABV > 14 % and FG ≤ 0.998 → info: hot finish; ageing or a
+  slight back-sweeten to 1.004–1.010 integrates alcohol.
+
+### 8.5 High-gravity & tolerance
+* OG > 1.130 → warning: osmotic stress; step-feed ⅓ of the honey at the 1/3 break.
+* `ABV_dry − tolerance > 2 %` → warning: will finish sweet (show predicted FG).
+* Predicted FG > 1.030 → warning: cloying, high stuck-fermentation risk.
+
+### 8.6 Spice dosing (metheglin)
+Every spice in `spices.json` has `g/L` bands `{subtle, typical, bold, max}`
+and a recommended contact time.
+
+| Dose vs. band | Severity |
+|---|---|
+| < subtle | info "may be imperceptible" |
+| subtle–bold | ok (shows where in the band it sits) |
+| bold–max | warning "assertive; taste every 2–3 days" |
+| > max | **error "astronomically high — will dominate"** + suggested dose |
+| > 3 × max | **error** + "check units (g vs kg, per L vs per batch)" |
+
+**Combined intensity:** `I = Σ dose_i / typical_i`. If `I > 2.5` → warning:
+the spices will compete; scale down to the typical dose of one lead spice.
+
+Guidance on all spice dosing: add in secondary in a sanitised bag, taste
+every 48 h, remove early. **The bands are practitioner consensus, not hard
+science** — the UI says so.
+
+### 8.7 Pairings & suggestions
+`pairings.json` lists affinity pairs (fruit ↔ spice, honey ↔ fruit) with a
+note. For each fruit/honey in the recipe, the engine suggests ≤ 3 partners
+that aren't already used, with the suggested starting dose (the spice's `typical` band).
+
+### 8.8 Honey character
+Varietal notes (e.g. buckwheat → assertive, pairs with dark fruit and baking
+spice; orange blossom → delicate, keep spice ≤ subtle).
+
+---
+
+## 9. Citation Registry (sources.ts)
+
+| id | Citation |
+|---|---|
+| `hall-1995` | Hall, M. L. "Brew by the Numbers — Add Up What's in Your Beer." *Zymurgy*, Summer 1995. |
+| `brewersfriend-abv` | Brewer's Friend, "Alcohol by Volume Calculator — alternate formula" (brewersfriend.com/abv-calculator). |
+| `balling` | Balling, C. J. N. (1865) fermentation stoichiometry 2.0665 : 1 : 0.9565 : 0.11. |
+| `lincoln` | Lincoln equation, Plato ⇄ SG approximation (as used in brewing software). |
+| `asbc` | ASBC Methods of Analysis, Table 1 — Extract in wort and beer. |
+| `crc-water` | CRC Handbook of Chemistry and Physics — density of water vs. temperature. |
+| `crc-sucrose` | CRC Handbook — density of crystalline sucrose. |
+| `nhb-honey` | National Honey Board, "Honey — Composition & Properties" (moisture 17–18 %, density ≈ 1.42 kg/L). |
+| `white-1975` | White, J. W. "Composition of Honey", in *Honey: A Comprehensive Survey* (Crane, ed.), 1975. |
+| `usda-fdc` | USDA FoodData Central — fruit sugars, moisture. |
+| `tosna` | Moutela, S. *TOSNA 3.0* — Tailored Organic Staggered Nutrient Additions (tosna.org). |
+| `scott-handbook` | Scott Laboratories, *Fermentation Handbook* (annual) — nutrient YAN values, yeast nitrogen classes. |
+| `meadmaderight` | Mead Made Right — nutrient & YAN guidance (meadmaderight.com). |
+| `ttb-24-246` | 27 CFR § 24.246 — Materials authorized for treatment of wine (DAP limit). |
+| `bjcp-2015` | BJCP 2015 Mead Style Guidelines (strength/sweetness categories). |
+| `schramm` | Schramm, K. *The Compleat Meadmaker*, Brewers Publications, 2003. |
+| `piatz` | Piatz, S. *The Complete Guide to Making Mead*, Voyageur Press, 2014. |
+| `zoecklein` | Zoecklein, B. et al. *Wine Analysis and Production* — TA, pH, acid conversions. |
+| `practice` | Practitioner consensus / commercial practice; treat as guidance, not law. |
+
+Every numeric constant and every database row references at least one id.
+The UI exposes a **Sources** drawer and a per-formula **"Show proof"** panel.
+
+---
+
+## 10. Data Schemas (src/data)
+
+```ts
+Honey  { id, name, solids: number /*0–1*/, density: number /*kg/L*/, character: string, intensity: 1|2|3, source: string[] }
+Fruit  { id, name, brix, insoluble /*0–1*/, ta /*g/L*/, acid: 'citric'|'malic'|'tartaric',
+         ph, tannin: 0|1|2|3, yan /*mg N/L juice*/, retention /*L/kg*/, notes, source[] }
+Spice  { id, name, form, subtle, typical, bold, max /*g/L*/, contactDays: [min,max], notes, source[] }
+Yeast  { id, name, maker, tolerance /*% ABV*/, nDemand: 'low'|'medium'|'high'|'veryHigh',
+         tempC: [min,max], notes, source[] }
+Pairing{ a, b, note }
+```
+Yeast nitrogen classes follow manufacturer/Scott Labs data at the time of
+writing; the UI lets the user override demand, because manufacturers revise them.
+
+---
+
+## 11. Testing Contract
+* `abv.test.ts` — every §4 benchmark, domain errors, monotonicity, inverse round-trip.
+* `gravity.test.ts` — Plato/SG round-trip, sucrose anchors (10 °P ≈ 1.0400, 20 °P ≈ 1.0830), blending.
+* `must.test.ts` — 35-PPG honey anchor, the §5.5 3 kg-fruit/10 L audit, infeasible over-volume.
+* `nutrients.test.ts` — YAN formula, 4-dose partition sums to total, DAP never after break, legal limit.
+* `flavor.test.ts` — spice bands incl. "astronomical", thin-hydromel warning, acid tip.
+
+## 12. Skeptic-Pass Checklist
+- [x] Fruit juice volume subtracted from water (not added on top).
+- [x] OG computed from mass balance, not additive volumes.
+- [x] Nutrient doses sum exactly to the total; dose 4 at the ⅓ break or day 7.
+- [x] No inorganic N (DAP) at/after the ⅓ break.
+- [x] Linear ABV appears only in the proof panel.
+- [x] Imperial toggle changes display only, never the stored SI state.
+- [x] Honey extract calibrated from density (≈ 36.5 PPG), not raw solids.
+
+### 12.0 Audit log (Step 4 results)
+| Check | Result |
+|---|---|
+| 3 kg strawberries → 10 L | Water reduced by **2.77 L**; day-0 occupancy **10.09 L**; fermenter ≥ **13.1 L** (30 % headspace); recovered ≈ 9.05 L. ✔ |
+| Honey PPG | Raw 82 % solids gave 37.9 PPG (too high) → **fixed** with density calibration → 36.5 PPG. ✔ |
+| Sucrose PPG | 46 ± 0.5 (brewing reference). ✔ |
+| Dry-sugar-only recipe | Crashed (100 °P out of Lincoln range) → **fixed** with solid-phase branch (§5.3a). ✔ |
+| Secondary fruit | Initial test assumed it raises OG; physics says lighter juice dilutes → **test corrected**, sugar conservation asserted. ✔ |
+| SNA partition | 4 doses at 24/48/72 h + ⅓ break/day 7; sums exact; DAP never in dose 4. ✔ |
+| Linear ABV | Only in `linearAbvForComparisonOnly`, used solely by the proof panel. ✔ |
+
+### 12.1 Unit display conventions
+Volume (L ⇄ gal) and bulk mass (kg ⇄ lb) follow the toggle. **Spices and
+nutrients are always shown in grams** in both systems, as TOSNA and most
+meadmakers weigh them; dose bands show g/L and, in Imperial, g/gal too.
