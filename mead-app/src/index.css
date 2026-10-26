@@ -11,7 +11,7 @@
   input:focus, select:focus { @apply outline-none ring-2 ring-honey-400; }
 }
 @layer components {
-  .btn { @apply inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium transition; }
+  .btn { @apply inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40; }
   .btn-primary { @apply btn bg-honey-500 text-stone-950 hover:bg-honey-400; }
   .btn-ghost { @apply btn text-stone-600 hover:bg-stone-200/70 dark:text-stone-300 dark:hover:bg-stone-800; }
   .label { @apply text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-stone-400; }

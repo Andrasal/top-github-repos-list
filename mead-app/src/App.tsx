@@ -13,17 +13,22 @@ import { SourcesList } from './components/SourcesList';
 import { SulfitePanel } from './components/SulfitePanel';
 import { ExportPanel } from './components/ExportPanel';
 import { CheckPanel } from './components/CheckPanel';
-import { PresetPicker } from './components/PresetPicker';
 import { TrackerPanel } from './components/TrackerPanel';
 import { AcidityPanel } from './components/AcidityPanel';
 import { Modal } from './components/ui';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { useLibrary } from './components/useLibrary';
+import { LibraryPanel } from './components/LibraryPanel';
+import { DraftBar } from './components/DraftBar';
+import { ChatPanel } from './components/ChatPanel';
+import { createEntry, deriveEntry, LibraryEntry, normaliseRecipe } from './lib/library';
 import { uid, unitHelpers } from './components/units';
 
 const STORE = 'mead-lab:v1';
-type ModalId = null | 'proof' | 'sources' | 'calc' | 'export' | 'check' | 'styles';
+type ModalId = null | 'proof' | 'sources' | 'calc' | 'export' | 'check' | 'library' | 'chat';
 
-function load(): { recipe: Recipe; units: UnitSystem } {
+interface Loaded { recipe: Recipe; units: UnitSystem; baseId: string | null; dirty: boolean }
+function load(): Loaded {
   try {
     const raw = localStorage.getItem(STORE);
     if (raw) {
@@ -33,12 +38,12 @@ function load(): { recipe: Recipe; units: UnitSystem } {
       recipe.log = { ...EMPTY_LOG, ...recipe.log };
       recipe.adjustments = recipe.adjustments ?? [];
       recipe.alkalinityCaCO3 = recipe.alkalinityCaCO3 ?? 50;
-      return { recipe, units: p.units === 'imperial' ? 'imperial' : 'metric' };
+      return { recipe, units: p.units === 'imperial' ? 'imperial' : 'metric', baseId: p.baseId ?? null, dirty: p.dirty ?? true };
     }
   } catch {
     /* storage unavailable — fall back to defaults */
   }
-  return { recipe: DEFAULT_RECIPE, units: 'metric' };
+  return { recipe: DEFAULT_RECIPE, units: 'metric', baseId: null, dirty: false };
 }
 
 const NAV = [
@@ -58,6 +63,14 @@ export default function App() {
   const [modal, setModal] = useState<ModalId>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  // Draft = an editable COPY. baseId = the saved version it was copied from (never modified).
+  const [baseId, setBaseId] = useState<string | null>(initial.baseId);
+  const [dirty, setDirty] = useState(initial.dirty);
+  const [saving, setSaving] = useState(false);
+  const [pendingOpen, setPendingOpen] = useState<{ recipe: Recipe; baseId: string | null } | null>(null);
+  const lib = useLibrary();
+  const base = lib.entries.find((e) => e.id === baseId) ?? null;
+  const nextVersion = base ? Math.max(...lib.entries.filter((e) => e.lineageId === base.lineageId).map((e) => e.version)) + 1 : 1;
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 60_000);
@@ -66,13 +79,41 @@ export default function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORE, JSON.stringify({ recipe, units }));
+      localStorage.setItem(STORE, JSON.stringify({ recipe, units, baseId, dirty }));
     } catch {
       /* ignore */
     }
-  }, [recipe, units]);
+  }, [recipe, units, baseId, dirty]);
 
-  const set = useCallback((p: Partial<Recipe>) => setRecipe((r) => ({ ...r, ...p })), []);
+  const set = useCallback((p: Partial<Recipe>) => { setRecipe((r) => ({ ...r, ...p })); setDirty(true); }, []);
+  const replace = useCallback((r: Recipe) => { setRecipe(r); setDirty(true); }, []);
+
+  const loadIntoEditor = (r: Recipe, id: string | null) => {
+    setRecipe(normaliseRecipe(structuredClone(r)));
+    setBaseId(id);
+    setDirty(id == null);
+    setPendingOpen(null);
+    setModal(null);
+  };
+  const requestOpen = (r: Recipe, id: string | null) => (dirty ? setPendingOpen({ recipe: r, baseId: id }) : loadIntoEditor(r, id));
+  const openEntry = (e: LibraryEntry) => requestOpen(e.recipe, e.id);
+
+  async function saveDraft(asNew: boolean): Promise<boolean> {
+    setSaving(true);
+    try {
+      const entry = !asNew && base
+        ? deriveEntry(base, recipe, lib.entries, { author: 'you', note: 'Edited in the app' })
+        : createEntry(recipe, { author: 'you', note: base ? `Branched from ${base.name} v${base.version}` : 'First save' });
+      await lib.save(entry);
+      setBaseId(entry.id);
+      setDirty(false);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
   const uh = useMemo(() => unitHelpers(units), [units]);
 
   // Typing stays instant: the (heavier) analysis follows a deferred copy of the recipe
@@ -94,7 +135,7 @@ export default function App() {
   const V = analysis?.whole.volumeL ?? recipe.targetVolumeL;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 pb-16">
+    <div className="mx-auto max-w-6xl px-4 pb-28">
       <header className="sticky top-0 z-40 -mx-4 mb-4 border-b border-stone-200 bg-stone-50/90 px-4 pb-2 pt-3 backdrop-blur dark:border-stone-800 dark:bg-stone-950/90">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-0">
@@ -108,7 +149,7 @@ export default function App() {
                 <span className={`tabular rounded-full px-1.5 text-[11px] font-bold ${hasError ? 'bg-stone-800 text-white dark:bg-stone-100 dark:text-stone-900' : 'bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-100'}`}>{flags.length}</span>
               )}
             </button>
-            <button className="btn-ghost" onClick={() => setModal('styles')}>Styles</button>
+            <button className="btn-ghost" onClick={() => setModal('library')}>Recipes</button>
             <button className="btn-primary" onClick={() => setModal('export')} disabled={!analysis}>Export</button>
           </div>
         </div>
@@ -121,6 +162,7 @@ export default function App() {
             <span className="inline-block h-3 w-3 rounded-full border border-stone-300 dark:border-stone-600" style={{ background: analysis.color.hex }} title={analysis.color.name} aria-hidden />
           </div>
         )}
+        <DraftBar base={base} nextVersion={nextVersion} dirty={dirty} saving={saving} onSaveVersion={() => saveDraft(false)} onSaveNew={() => saveDraft(true)} />
         <nav className="-mx-1 mt-2 flex gap-1 overflow-x-auto pb-0.5 text-xs" aria-label="Sections">
           {NAV.map((n) => (
             <a key={n.id} href={`#${n.id}`} className="shrink-0 rounded-full bg-stone-200/70 px-2.5 py-1 font-medium text-stone-700 hover:bg-honey-200 dark:bg-stone-800 dark:text-stone-200 dark:hover:bg-honey-900/50">{n.label}</a>
@@ -139,7 +181,7 @@ export default function App() {
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
         <div className="flex min-w-0 flex-col gap-4" id="recipe">
-          <BatchPanel r={recipe} set={set} replace={setRecipe} uh={uh} />
+          <BatchPanel r={recipe} set={set} replace={replace} uh={uh} />
           <FermentablesPanel r={recipe} set={set} uh={uh} a={analysis} />
           <FruitPanel r={recipe} set={set} uh={uh} a={analysis} />
           <BotanicalPanel r={recipe} set={set} uh={uh} a={analysis} kind="flowers" />
@@ -175,13 +217,18 @@ export default function App() {
         </div>
       </div>
 
+      <button onClick={() => setModal('chat')} aria-label="Open the recipe assistant"
+        className="fixed z-30 flex items-center gap-2 rounded-full bg-stone-900 px-4 py-3 text-sm font-semibold text-white shadow-lg hover:bg-stone-700 dark:bg-honey-400 dark:text-stone-950 dark:hover:bg-honey-300"
+        style={{ right: 'max(16px, calc(env(safe-area-inset-right, 0px) + 16px))', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}>
+        <span aria-hidden>✨</span> Ask AI
+      </button>
       <footer className="mt-8 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-stone-500">
         <span>Guidance, not gospel: verify with a hydrometer, a pH meter and bench trials.</span>
         <button className="underline" onClick={() => setModal('calc')}>ABV calculator</button>
         <button className="underline" onClick={() => setModal('sources')}>Sources & licences</button>
         {confirmReset ? (
           <span className="flex items-center gap-1">
-            <button className="btn-primary" onClick={() => { setRecipe(DEFAULT_RECIPE); setConfirmReset(false); }}>Reset everything</button>
+            <button className="btn-primary" onClick={() => { loadIntoEditor(DEFAULT_RECIPE, null); setDirty(false); setConfirmReset(false); }}>Reset the editor</button>
             <button className="btn-ghost" onClick={() => setConfirmReset(false)}>Cancel</button>
           </span>
         ) : (
@@ -192,8 +239,21 @@ export default function App() {
       <Modal open={modal === 'check'} onClose={() => setModal(null)} title="Recipe check">
         <CheckPanel flags={flags} />
       </Modal>
-      <Modal open={modal === 'styles'} onClose={() => setModal(null)} title="Start from a style">
-        <PresetPicker current={recipe} onPick={(r) => { setRecipe({ ...r, log: recipe.log }); setModal(null); }} />
+      <Modal open={modal === 'library'} onClose={() => setModal(null)} title="My recipes">
+        <LibraryPanel lib={lib} current={recipe} currentBaseId={baseId} onOpen={openEntry} onNew={(r) => requestOpen({ ...r, log: recipe.log }, null)} />
+      </Modal>
+      <Modal open={modal === 'chat'} onClose={() => setModal(null)} title="Recipe assistant">
+        <ChatPanel lib={lib} draft={recipe} baseId={baseId} units={units} onOpenEntry={openEntry} />
+      </Modal>
+      <Modal open={pendingOpen != null} onClose={() => setPendingOpen(null)} title="Unsaved changes">
+        <p className="text-sm text-stone-600 dark:text-stone-300">The recipe in the editor has changes that aren't saved. Saved versions are never affected either way.</p>
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
+          <button className="btn-ghost" onClick={() => setPendingOpen(null)}>Cancel</button>
+          <button className="btn-ghost border border-stone-300 dark:border-stone-700" onClick={() => pendingOpen && loadIntoEditor(pendingOpen.recipe, pendingOpen.baseId)}>Discard changes</button>
+          <button className="btn-primary" disabled={saving} onClick={async () => { if (pendingOpen && (await saveDraft(!base))) loadIntoEditor(pendingOpen.recipe, pendingOpen.baseId); }}>
+            {base ? `Save as v${nextVersion}, then open` : 'Save, then open'}
+          </button>
+        </div>
       </Modal>
       <Modal open={modal === 'proof'} onClose={() => setModal(null)} title="ABV: the maths and where it comes from">
         {analysis && <AbvProofView og={analysis.effectiveOg} fg={analysis.fg.fg} />}
