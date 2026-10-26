@@ -1,0 +1,579 @@
+[
+ {
+  "id": "cinnamon",
+  "name": "Cinnamon (stick)",
+  "form": "whole stick",
+  "subtle": 0.25,
+  "typical": 0.6,
+  "bold": 1.2,
+  "max": 2.5,
+  "contactDays": [
+   3,
+   14
+  ],
+  "notes": "Cassia is hotter than Ceylon; one 3–4 g stick per gallon (~1 g/L) is already clearly present.",
+  "source": [
+   "schramm",
+   "practice"
+  ],
+  "group": "spice",
+  "aroma": "cinnamon"
+ },
+ {
+  "id": "vanilla",
+  "name": "Vanilla bean",
+  "form": "split bean",
+  "subtle": 0.3,
+  "typical": 0.7,
+  "bold": 1.3,
+  "max": 2.5,
+  "contactDays": [
+   7,
+   28
+  ],
+  "notes": "One bean ≈ 3–4 g. Smooths acidity and alcohol heat.",
+  "source": [
+   "practice"
+  ],
+  "group": "spice",
+  "aroma": "vanilla"
+ },
+ {
+  "id": "clove",
+  "name": "Clove",
+  "form": "whole",
+  "subtle": 0.02,
+  "typical": 0.05,
+  "bold": 0.1,
+  "max": 0.2,
+  "contactDays": [
+   1,
+   7
+  ],
+  "notes": "Extremely potent (eugenol). 1 clove ≈ 0.1 g; 2–3 per 5 gallons is plenty.",
+  "source": [
+   "schramm",
+   "practice"
+  ],
+  "group": "spice",
+  "aroma": "clove"
+ },
+ {
+  "id": "nutmeg",
+  "name": "Nutmeg",
+  "form": "freshly grated",
+  "subtle": 0.03,
+  "typical": 0.08,
+  "bold": 0.15,
+  "max": 0.3,
+  "contactDays": [
+   2,
+   7
+  ],
+  "notes": "Turns soapy/medicinal fast — err low.",
+  "source": [
+   "practice"
+  ],
+  "group": "spice",
+  "aroma": "nutmeg"
+ },
+ {
+  "id": "allspice",
+  "name": "Allspice",
+  "form": "whole berry",
+  "subtle": 0.05,
+  "typical": 0.12,
+  "bold": 0.25,
+  "max": 0.5,
+  "contactDays": [
+   2,
+   10
+  ],
+  "notes": "Clove-like; reduce clove if combining.",
+  "source": [
+   "practice"
+  ],
+  "group": "spice",
+  "aroma": "allspice"
+ },
+ {
+  "id": "star-anise",
+  "name": "Star anise",
+  "form": "whole pod",
+  "subtle": 0.05,
+  "typical": 0.12,
+  "bold": 0.25,
+  "max": 0.5,
+  "contactDays": [
+   2,
+   7
+  ],
+  "notes": "Pod ≈ 0.5 g; licorice dominates quickly.",
+  "source": [
+   "practice"
+  ],
+  "group": "spice",
+  "aroma": "anise"
+ },
+ {
+  "id": "cardamom",
+  "name": "Cardamom (green)",
+  "form": "cracked pod",
+  "subtle": 0.1,
+  "typical": 0.3,
+  "bold": 0.6,
+  "max": 1.2,
+  "contactDays": [
+   3,
+   10
+  ],
+  "notes": "Bright, eucalyptus-citrus; pairs with orange blossom honey and pear.",
+  "source": [
+   "practice"
+  ],
+  "group": "spice",
+  "aroma": "cardamom"
+ },
+ {
+  "id": "ginger",
+  "name": "Ginger (fresh)",
+  "form": "sliced root",
+  "subtle": 2,
+  "typical": 5,
+  "bold": 10,
+  "max": 20,
+  "contactDays": [
+   3,
+   14
+  ],
+  "notes": "Fresh root; dried powder is ~5× stronger by weight.",
+  "source": [
+   "schramm",
+   "practice"
+  ],
+  "group": "spice",
+  "aroma": "ginger heat"
+ },
+ {
+  "id": "black-pepper",
+  "name": "Black pepper",
+  "form": "cracked",
+  "subtle": 0.05,
+  "typical": 0.15,
+  "bold": 0.35,
+  "max": 0.7,
+  "contactDays": [
+   2,
+   7
+  ],
+  "notes": "Adds perceived dryness and heat.",
+  "source": [
+   "practice"
+  ],
+  "group": "spice",
+  "aroma": "pepper"
+ },
+ {
+  "id": "oak",
+  "name": "Oak cubes (medium toast)",
+  "form": "cubes/chips",
+  "subtle": 1,
+  "typical": 2.5,
+  "bold": 4,
+  "max": 8,
+  "contactDays": [
+   14,
+   90
+  ],
+  "notes": "Chips extract in ~2 weeks, cubes in 2–3 months. Adds tannin and vanillin.",
+  "source": [
+   "zoecklein",
+   "practice"
+  ],
+  "group": "adjunct",
+  "aroma": "oak and vanillin"
+ },
+ {
+  "id": "lavender",
+  "name": "Lavender (dried)",
+  "form": "dried buds",
+  "subtle": 0.05,
+  "typical": 0.15,
+  "bold": 0.3,
+  "max": 0.6,
+  "contactDays": [
+   1,
+   5
+  ],
+  "notes": "Soapy above ~0.3 g/L. Taste daily.",
+  "source": [
+   "practice"
+  ],
+  "group": "floral",
+  "aroma": "lavender"
+ },
+ {
+  "id": "chamomile",
+  "name": "Chamomile (dried)",
+  "form": "dried flowers",
+  "subtle": 0.3,
+  "typical": 0.8,
+  "bold": 1.5,
+  "max": 3,
+  "contactDays": [
+   2,
+   7
+  ],
+  "notes": "Apple-floral; good with light honey.",
+  "source": [
+   "practice"
+  ],
+  "group": "floral",
+  "aroma": "chamomile"
+ },
+ {
+  "id": "hibiscus",
+  "name": "Hibiscus (dried)",
+  "form": "dried calyces",
+  "subtle": 0.5,
+  "typical": 1.5,
+  "bold": 3,
+  "max": 6,
+  "contactDays": [
+   2,
+   7
+  ],
+  "notes": "Adds colour and lots of acid — lowers pH.",
+  "source": [
+   "practice"
+  ],
+  "group": "floral",
+  "aroma": "tart hibiscus",
+  "acidPerG": 0.6
+ },
+ {
+  "id": "rose",
+  "name": "Rose petals (dried)",
+  "form": "dried petals",
+  "subtle": 0.3,
+  "typical": 0.8,
+  "bold": 1.5,
+  "max": 3,
+  "contactDays": [
+   2,
+   7
+  ],
+  "notes": "Rhodomel; perfumed — balance with acidity.",
+  "source": [
+   "practice"
+  ],
+  "group": "floral",
+  "aroma": "rose petal"
+ },
+ {
+  "id": "orange-zest",
+  "name": "Orange zest",
+  "form": "fresh zest (no pith)",
+  "subtle": 0.5,
+  "typical": 1.5,
+  "bold": 3,
+  "max": 6,
+  "contactDays": [
+   2,
+   7
+  ],
+  "notes": "Pith adds bitterness — zest only.",
+  "source": [
+   "practice"
+  ],
+  "group": "spice",
+  "aroma": "orange peel"
+ },
+ {
+  "id": "coffee",
+  "name": "Coffee (whole beans)",
+  "form": "whole/coarse beans",
+  "subtle": 2,
+  "typical": 5,
+  "bold": 10,
+  "max": 20,
+  "contactDays": [
+   1,
+   4
+  ],
+  "notes": "Cold-steep in secondary; extracts in 24–72 h.",
+  "source": [
+   "practice"
+  ],
+  "group": "adjunct",
+  "aroma": "roast coffee"
+ },
+ {
+  "id": "cacao",
+  "name": "Cacao nibs",
+  "form": "roasted nibs",
+  "subtle": 2,
+  "typical": 5,
+  "bold": 10,
+  "max": 20,
+  "contactDays": [
+   5,
+   21
+  ],
+  "notes": "Soak in vodka first to sanitise; pairs with cherry and vanilla.",
+  "source": [
+   "practice"
+  ],
+  "group": "adjunct",
+  "aroma": "dark chocolate"
+ },
+ {
+  "id": "chili",
+  "name": "Chili (jalapeño, fresh)",
+  "form": "sliced, seeded",
+  "subtle": 1,
+  "typical": 3,
+  "bold": 6,
+  "max": 12,
+  "contactDays": [
+   1,
+   5
+  ],
+  "notes": "Capsicumel. Heat builds fast; taste every 12–24 h.",
+  "source": [
+   "practice"
+  ],
+  "group": "spice",
+  "aroma": "chili heat"
+ },
+ {
+  "id": "lemongrass",
+  "name": "Lemongrass",
+  "form": "bruised stalk",
+  "subtle": 1,
+  "typical": 3,
+  "bold": 6,
+  "max": 10,
+  "contactDays": [
+   3,
+   10
+  ],
+  "notes": "Bright citrus without acid.",
+  "source": [
+   "practice"
+  ],
+  "group": "herb",
+  "aroma": "lemongrass"
+ },
+ {
+  "id": "elderflower",
+  "name": "Elderflower (dried)",
+  "form": "dried florets",
+  "subtle": 0.3,
+  "typical": 1,
+  "bold": 2,
+  "max": 4,
+  "contactDays": [
+   2,
+   7
+  ],
+  "notes": "Lychee-muscat perfume; classic with gooseberry, pear and light honey. Florets only — stems are bitter.",
+  "source": [
+   "practice"
+  ],
+  "group": "floral",
+  "aroma": "elderflower, muscat"
+ },
+ {
+  "id": "meadowsweet",
+  "name": "Meadowsweet (dried)",
+  "form": "dried flowers",
+  "subtle": 0.2,
+  "typical": 0.6,
+  "bold": 1.2,
+  "max": 2.5,
+  "contactDays": [
+   2,
+   7
+  ],
+  "notes": "Historic 'mead-wort': almond-honey, wintergreen. Strong above ~1 g/L.",
+  "source": [
+   "practice"
+  ],
+  "group": "floral",
+  "aroma": "almond, wintergreen"
+ },
+ {
+  "id": "orange-blossom-flower",
+  "name": "Orange blossom (dried)",
+  "form": "dried blossoms",
+  "subtle": 0.2,
+  "typical": 0.5,
+  "bold": 1,
+  "max": 2,
+  "contactDays": [
+   2,
+   5
+  ],
+  "notes": "Neroli perfume; amplifies orange-blossom honey.",
+  "source": [
+   "practice"
+  ],
+  "group": "floral",
+  "aroma": "neroli"
+ },
+ {
+  "id": "jasmine",
+  "name": "Jasmine (dried)",
+  "form": "dried flowers / pearls",
+  "subtle": 0.1,
+  "typical": 0.3,
+  "bold": 0.6,
+  "max": 1.2,
+  "contactDays": [
+   1,
+   4
+  ],
+  "notes": "Heady and indolic; turns perfumey quickly.",
+  "source": [
+   "practice"
+  ],
+  "group": "floral",
+  "aroma": "jasmine"
+ },
+ {
+  "id": "butterfly-pea",
+  "name": "Butterfly pea flower",
+  "form": "dried flowers",
+  "subtle": 0.2,
+  "typical": 0.5,
+  "bold": 1,
+  "max": 2,
+  "contactDays": [
+   1,
+   3
+  ],
+  "notes": "Mostly colour, little flavour. Blue at high pH, violet-pink in acidic mead: a fun colour-change show.",
+  "source": [
+   "practice"
+  ],
+  "group": "floral",
+  "aroma": "subtle earthy-tea",
+  "flavour": 0.15
+ },
+ {
+  "id": "linden",
+  "name": "Linden / lime blossom (dried)",
+  "form": "dried flowers + bracts",
+  "subtle": 0.3,
+  "typical": 1,
+  "bold": 2,
+  "max": 4,
+  "contactDays": [
+   2,
+   7
+  ],
+  "notes": "Honeyed, soft floral; very mead-friendly.",
+  "source": [
+   "practice"
+  ],
+  "group": "floral",
+  "aroma": "linden honey"
+ },
+ {
+  "id": "calendula",
+  "name": "Calendula (dried)",
+  "form": "dried petals",
+  "subtle": 0.2,
+  "typical": 0.6,
+  "bold": 1.2,
+  "max": 2.5,
+  "contactDays": [
+   2,
+   7
+  ],
+  "notes": "Golden colour, gentle resinous note.",
+  "source": [
+   "practice"
+  ],
+  "group": "floral",
+  "aroma": "resinous floral"
+ },
+ {
+  "id": "rosehip",
+  "name": "Rosehip (dried)",
+  "form": "dried, cut",
+  "subtle": 1,
+  "typical": 3,
+  "bold": 6,
+  "max": 10,
+  "contactDays": [
+   5,
+   14
+  ],
+  "notes": "Tart, tea-like; adds acidity and orange-red colour.",
+  "source": [
+   "practice"
+  ],
+  "group": "floral",
+  "aroma": "tart rosehip",
+  "acidPerG": 0.3
+ },
+ {
+  "id": "heather-tips",
+  "name": "Heather tips (dried)",
+  "form": "dried flowering tips",
+  "subtle": 0.3,
+  "typical": 1,
+  "bold": 2,
+  "max": 4,
+  "contactDays": [
+   2,
+   7
+  ],
+  "notes": "Traditional Scottish brewing herb; floral-bitter.",
+  "source": [
+   "practice"
+  ],
+  "group": "herb",
+  "aroma": "heather, bitter-floral"
+ },
+ {
+  "id": "mint",
+  "name": "Mint (fresh)",
+  "form": "bruised leaves",
+  "subtle": 0.5,
+  "typical": 1.5,
+  "bold": 3,
+  "max": 6,
+  "contactDays": [
+   1,
+   4
+  ],
+  "notes": "Fades fast in the bottle; add late.",
+  "source": [
+   "practice"
+  ],
+  "group": "herb",
+  "aroma": "cool mint"
+ },
+ {
+  "id": "thyme",
+  "name": "Thyme (fresh)",
+  "form": "sprigs",
+  "subtle": 0.2,
+  "typical": 0.6,
+  "bold": 1.2,
+  "max": 2.5,
+  "contactDays": [
+   2,
+   7
+  ],
+  "notes": "Savoury-floral; lovely with lemon and wildflower honey.",
+  "source": [
+   "practice"
+  ],
+  "group": "herb",
+  "aroma": "thyme"
+ }
+]

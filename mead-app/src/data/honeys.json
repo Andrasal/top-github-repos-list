@@ -1,0 +1,151 @@
+[
+ {
+  "id": "wildflower",
+  "name": "Wildflower",
+  "solids": 0.82,
+  "density": 1.42,
+  "intensity": 2,
+  "character": "Variable, floral-fruity; a forgiving all-rounder for melomels and metheglins.",
+  "source": [
+   "nhb-honey",
+   "schramm",
+   "white-1962"
+  ],
+  "color": "#d9a53b",
+  "ph": 3.9,
+  "freeAcidity": 22,
+  "lactoneAcidity": 7
+ },
+ {
+  "id": "clover",
+  "name": "Clover",
+  "solids": 0.82,
+  "density": 1.42,
+  "intensity": 1,
+  "character": "Mild, clean and sweet; lets fruit and spice lead. Can taste neutral in traditionals.",
+  "source": [
+   "nhb-honey",
+   "schramm",
+   "white-1962"
+  ],
+  "color": "#e8c35e",
+  "ph": 3.9,
+  "freeAcidity": 22,
+  "lactoneAcidity": 7
+ },
+ {
+  "id": "orange-blossom",
+  "name": "Orange Blossom",
+  "solids": 0.82,
+  "density": 1.42,
+  "intensity": 2,
+  "character": "Delicate citrus-floral aromatics; easily masked — keep spice at or below the subtle dose.",
+  "source": [
+   "nhb-honey",
+   "schramm",
+   "white-1962"
+  ],
+  "color": "#e6b84f",
+  "ph": 3.9,
+  "freeAcidity": 22,
+  "lactoneAcidity": 7
+ },
+ {
+  "id": "tupelo",
+  "name": "Tupelo",
+  "solids": 0.82,
+  "density": 1.42,
+  "intensity": 2,
+  "character": "Buttery, floral, high fructose; elegant in traditionals and sacks.",
+  "source": [
+   "nhb-honey",
+   "white-1962"
+  ],
+  "color": "#e2c06a",
+  "ph": 3.9,
+  "freeAcidity": 22,
+  "lactoneAcidity": 7
+ },
+ {
+  "id": "acacia",
+  "name": "Acacia (Black Locust)",
+  "solids": 0.825,
+  "density": 1.42,
+  "intensity": 1,
+  "character": "Very light, vanilla-floral; a showcase for delicate fruit (pear, white peach).",
+  "source": [
+   "nhb-honey",
+   "white-1962"
+  ],
+  "color": "#f0dc9a",
+  "ph": 3.9,
+  "freeAcidity": 22,
+  "lactoneAcidity": 7
+ },
+ {
+  "id": "meadowfoam",
+  "name": "Meadowfoam",
+  "solids": 0.82,
+  "density": 1.42,
+  "intensity": 3,
+  "character": "Marshmallow-vanilla; pairs with dessert profiles and stone fruit.",
+  "source": [
+   "practice",
+   "white-1962"
+  ],
+  "color": "#d6a04a",
+  "ph": 3.9,
+  "freeAcidity": 22,
+  "lactoneAcidity": 7
+ },
+ {
+  "id": "buckwheat",
+  "name": "Buckwheat",
+  "solids": 0.81,
+  "density": 1.41,
+  "intensity": 3,
+  "character": "Dark, malty, molasses and barnyard; demands dark fruit (cherry, blackberry), baking spice and long ageing.",
+  "source": [
+   "nhb-honey",
+   "schramm",
+   "white-1962"
+  ],
+  "color": "#5c2e12",
+  "ph": 4.1,
+  "freeAcidity": 30,
+  "lactoneAcidity": 7
+ },
+ {
+  "id": "avocado",
+  "name": "Avocado",
+  "solids": 0.81,
+  "density": 1.41,
+  "intensity": 3,
+  "character": "Dark, caramel-molasses; great in sacks and with coffee or cacao.",
+  "source": [
+   "nhb-honey",
+   "white-1962"
+  ],
+  "color": "#6e3a14",
+  "ph": 4.1,
+  "freeAcidity": 30,
+  "lactoneAcidity": 7
+ },
+ {
+  "id": "heather",
+  "name": "Heather (Ling)",
+  "solids": 0.79,
+  "density": 1.39,
+  "intensity": 3,
+  "character": "Thixotropic, high moisture; bitter-floral and smoky. Stands up to strong spice.",
+  "source": [
+   "practice",
+   "white-1962",
+   "white-1975"
+  ],
+  "color": "#a65f22",
+  "ph": 4.0,
+  "freeAcidity": 28,
+  "lactoneAcidity": 7
+ }
+]
