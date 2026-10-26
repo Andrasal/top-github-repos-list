@@ -11,7 +11,8 @@ export function ExportPanel({ a }: { a: Analysis }) {
     setBusy(true);
     setStatus('Building workbook…');
     try {
-      const { buildWorkbook, fileName } = await import('../lib/export');
+      const { buildWorkbook, fileName, ensureExcel } = await import('../lib/export');
+      await ensureExcel();
       const buf = await buildWorkbook(a).xlsx.writeBuffer();
       const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const res = await saveFile(fileName(a), blob);

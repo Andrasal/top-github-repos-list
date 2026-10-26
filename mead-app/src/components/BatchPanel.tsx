@@ -4,8 +4,9 @@ import { PROTOCOL_LABELS, Protocol } from '../lib/nutrients';
 import type { NDemand } from '../lib/constants';
 import { Card, NumberField, Select, Tip } from './ui';
 import type { UnitHelpers } from './units';
+import { DesignerTools } from './DesignerTools';
 
-export function BatchPanel({ r, set, uh }: { r: Recipe; set: (p: Partial<Recipe>) => void; uh: UnitHelpers }) {
+export function BatchPanel({ r, set, replace, uh }: { r: Recipe; set: (p: Partial<Recipe>) => void; replace: (r: Recipe) => void; uh: UnitHelpers }) {
   const yeast = yeastById(r.yeastId);
   return (
     <Card title="Batch & Yeast" icon="🧪">
@@ -88,6 +89,7 @@ export function BatchPanel({ r, set, uh }: { r: Recipe; set: (p: Partial<Recipe>
           hint="Terminal gravity of a fully dry mead. Ethanol is lighter than water, so dry meads read ~0.994–0.998 (SPEC §2.2)."
         />
       </div>
+      <DesignerTools r={r} replace={replace} uh={uh} />
     </Card>
   );
 }

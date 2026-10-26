@@ -3,7 +3,7 @@
  * Thresholds are practitioner consensus (schramm, piatz, practice) unless tagged otherwise.
  */
 import { ACID_TO_TARTARIC, HONEY_BASE_TA } from './constants';
-import type { Fruit, Honey, Spice } from './db';
+import type { DoseBands, Fruit, Honey, Spice } from './db';
 import { PAIRINGS, SPICES, FRUITS, HONEYS } from './db';
 import type { Sweetness } from './fermentation';
 
@@ -42,13 +42,14 @@ export function fruitLoadClass(kgPerL: number): FruitLoadClass {
 }
 
 /** SPEC §8.2 — estimated TA (g/L tartaric eq.) of the finished mead. */
-export function estimateTA(fruits: FlavorInput['fruits'], volumeL: number): number {
+export function estimateTA(fruits: FlavorInput['fruits'], volumeL: number, spices: FlavorInput['spices'] = []): number {
   if (volumeL <= 0) return HONEY_BASE_TA;
+  const botanicalAcid = spices.reduce((a, { spice, grams }) => a + (spice.acidPerG ?? 0) * (grams / volumeL), 0);
   const acid = fruits.reduce((a, { fruit, massKg }) => {
     const juiceL = massKg * (1 - fruit.insoluble); // ≈ kg ≈ L for dilute juice
     return a + juiceL * fruit.ta * ACID_TO_TARTARIC[fruit.acid];
   }, 0);
-  return HONEY_BASE_TA + acid / volumeL;
+  return HONEY_BASE_TA + acid / volumeL + botanicalAcid;
 }
 
 export const TA_TARGETS: Record<Sweetness, [number, number]> = {
@@ -56,15 +57,18 @@ export const TA_TARGETS: Record<Sweetness, [number, number]> = {
 };
 
 export type SpiceBand = 'imperceptible' | 'subtle' | 'typical' | 'bold' | 'assertive' | 'astronomical' | 'unit-error';
-/** SPEC §8.6 */
-export function spiceBand(s: Spice, gPerL: number): SpiceBand {
-  if (gPerL > 3 * s.max) return 'unit-error';
-  if (gPerL > s.max) return 'astronomical';
-  if (gPerL > s.bold) return 'assertive';
-  if (gPerL >= s.typical) return gPerL > (s.typical + s.bold) / 2 ? 'bold' : 'typical';
-  if (gPerL >= s.subtle) return 'subtle';
+export type DoseBand = SpiceBand;
+/** SPEC §8.6 / §17 — one classifier for spices, flowers (g/L) and fruit (kg/L). */
+export function doseBand(b: DoseBands, dose: number): DoseBand {
+  if (dose > 3 * b.max) return 'unit-error';
+  if (dose > b.max) return 'astronomical';
+  if (dose > b.bold) return 'assertive';
+  if (dose >= b.typical) return dose > (b.typical + b.bold) / 2 ? 'bold' : 'typical';
+  if (dose >= b.subtle) return 'subtle';
   return 'imperceptible';
 }
+export const spiceBand = (s: Spice, gPerL: number): SpiceBand => doseBand(s, gPerL);
+export const fruitBand = (f: Fruit, kgPerL: number): DoseBand => doseBand(f, kgPerL);
 
 export interface Suggestion { forId: string; forName: string; partnerId: string; partnerName: string; note: string; startDoseGPerL?: number }
 
@@ -93,8 +97,21 @@ export function advise(x: FlavorInput): { advisories: Advisory[]; suggestions: S
     out.push({ id: 'fruit-aroma', severity: 'tip', category: 'fruit', title: 'Delicate aroma in primary', detail: 'CO₂ scrubs volatile aromatics from delicate fruit in primary.', suggestion: 'Move at least half of this fruit to secondary.', source: ['practice'] });
   }
 
+  // §17 Per-fruit dose bands (each fruit judged on its own intensity)
+  for (const { fruit, massKg } of x.fruits) {
+    if (V <= 0 || massKg <= 0) continue;
+    const kgl = massKg / V;
+    const band = fruitBand(fruit, kgl);
+    const base = { category: 'fruit' as const, source: ['schramm', 'practice'] };
+    if (band === 'unit-error' || band === 'astronomical') {
+      out.push({ ...base, id: `fruit-dose-${fruit.id}`, severity: 'error', title: `${fruit.name}: far beyond a useful dose`, detail: `${fmt(kgl)} kg/L is above the ${fruit.max} kg/L ceiling for this fruit — it will overwhelm the honey, drop pH and leave heavy pulp losses.${band === 'unit-error' ? ' Check units (kg vs g, lb vs kg).' : ''}`, suggestion: `Start at ${fruit.typical} kg/L ≈ ${fmt(fruit.typical * V, 1)} kg for this batch.` });
+    } else if (band === 'assertive') {
+      out.push({ ...base, id: `fruit-dose-${fruit.id}`, severity: 'warning', title: `${fruit.name}: very fruit-forward`, detail: `${fmt(kgl)} kg/L is past the bold end (${fruit.bold} kg/L) for ${fruit.name.toLowerCase()}.`, suggestion: 'Intended as a fruit bomb? Fine. Otherwise split it between primary and secondary and taste before adding the rest.' });
+    }
+  }
+
   // §8.2 Acid balance
-  const ta = estimateTA(x.fruits, V);
+  const ta = estimateTA(x.fruits, V, x.spices);
   const [taMin, taMax] = TA_TARGETS[x.sweetness];
   if (ta < taMin) {
     const addG = ((taMin + taMax) / 2 - ta) * V;
@@ -147,7 +164,7 @@ export function advise(x: FlavorInput): { advisories: Advisory[]; suggestions: S
   for (const { spice, grams } of x.spices) {
     if (V <= 0 || grams <= 0) continue;
     const gpl = grams / V;
-    intensity += gpl / spice.typical;
+    intensity += (gpl / spice.typical) * (spice.flavour ?? 1);
     const band = spiceBand(spice, gpl);
     const range = `${spice.subtle}–${spice.bold} g/L`;
     const base = { category: 'spice' as const, source: spice.source };
@@ -159,9 +176,8 @@ export function advise(x: FlavorInput): { advisories: Advisory[]; suggestions: S
       out.push({ ...base, id: `spice-${spice.id}`, severity: 'warning', title: `${spice.name}: assertive dose`, detail: `${fmt(gpl)} g/L is above the bold end of ${range}.`, suggestion: `Taste every 2–3 days and pull at ${spice.contactDays[0]}–${spice.contactDays[1]} days.` });
     } else if (band === 'imperceptible') {
       out.push({ ...base, id: `spice-${spice.id}`, severity: 'info', title: `${spice.name}: may be imperceptible`, detail: `${fmt(gpl, 3)} g/L is below the subtle threshold (${spice.subtle} g/L).` });
-    } else {
-      out.push({ ...base, id: `spice-${spice.id}`, severity: 'info', title: `${spice.name}: ${band} dose`, detail: `${fmt(gpl, 2)} g/L sits in the ${band} part of ${range}. Contact ${spice.contactDays[0]}–${spice.contactDays[1]} days, in secondary, in a sanitised bag.`, suggestion: spice.notes });
     }
+    // In-band doses need no advisory: the dose meter on each row already shows where they sit (SPEC §16).
   }
   if (intensity > 2.5) {
     out.push({ id: 'spice-combined', severity: 'warning', category: 'spice', title: 'Spices will compete', detail: `Combined spice intensity is ${fmt(intensity, 1)}× a single typical dose.`, suggestion: 'Choose one lead spice at its typical dose and keep the rest at their subtle dose.', source: ['practice'] });

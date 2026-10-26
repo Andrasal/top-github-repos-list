@@ -2,12 +2,15 @@ import { describe, expect, it } from 'vitest';
 import ExcelJS from 'exceljs';
 import { buildWorkbook, toTsv } from '../export';
 import { analyzeRecipe, DEFAULT_RECIPE } from '../recipe';
+import { abv as abvRef } from '../abv';
 
 describe('export (SPEC §14)', () => {
   const a = analyzeRecipe({ ...DEFAULT_RECIPE, targetFg: 1.012 });
   it('builds a workbook with all sheets and round-trips through xlsx', async () => {
     const wb = buildWorkbook(a, { generated: new Date('2026-10-26') });
     expect(wb.worksheets.map((w) => w.name)).toEqual(['Summary', 'Ingredients', 'Nutrients', 'Sulfite', 'Advisor', 'Sources']);
+    const logged = buildWorkbook(analyzeRecipe({ ...DEFAULT_RECIPE, log: { pitchedAt: '2026-10-01T18:00:00Z', readings: [{ uid: 'a', at: '2026-10-01T18:00:00Z', sg: 1.1 }, { uid: 'b', at: '2026-10-05T18:00:00Z', sg: 1.05 }], dosesDone: [true, true, true, false] } }));
+    expect(logged.getWorksheet('Log')!.getCell('D6').value).toMatchObject({ result: expect.closeTo(abvRef(1.1, 1.05), 8) });
     const buf = await wb.xlsx.writeBuffer();
     const back = new ExcelJS.Workbook();
     await back.xlsx.load(buf as ArrayBuffer);

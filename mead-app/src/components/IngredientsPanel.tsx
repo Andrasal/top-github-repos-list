@@ -1,6 +1,7 @@
 import type { Recipe } from '../lib/recipe';
 import { FRUITS, HONEYS, SPICES, SUGARS, fruitById, honeyById, spiceById, SugarId } from '../lib/db';
-import { spiceBand } from '../lib/flavor';
+import type { Spice } from '../lib/db';
+import { DoseMeter } from './DoseMeter';
 import type { Analysis } from '../lib/recipe';
 import { L_PER_GAL } from '../lib/units';
 import { Card, Cite, NumberField, RemoveButton, Select, Tip } from './ui';
@@ -66,6 +67,7 @@ export function FermentablesPanel({ r, set, uh, a }: { r: Recipe; set: Setter; u
 }
 
 export function FruitPanel({ r, set, uh, a }: { r: Recipe; set: Setter; uh: UnitHelpers; a: Analysis | null }) {
+  const V = a?.whole.volumeL ?? r.targetVolumeL;
   return (
     <Card
       title="Fruit (Melomel)"
@@ -91,6 +93,8 @@ export function FruitPanel({ r, set, uh, a }: { r: Recipe; set: Setter; uh: Unit
                 <Tip>{fr.notes} Juice soluble fraction {(1 - fr.insoluble) * 100}%, retains ~{fr.retention} L/kg in pulp.</Tip>
                 <Cite ids={fr.source} />
               </div>
+              <DoseMeter bands={fr} dose={V > 0 ? f.massKg / V : 0} unit="kg/L" extra={uh.u === 'imperial' ? `${((f.massKg / V) * L_PER_GAL / 0.45359237).toFixed(2)} lb/gal` : undefined}
+                tip={`How strongly ${fr.name.toLowerCase()} reads at this load. Each fruit has its own scale: 0.3 kg/L of raspberry is bold, the same blueberry is subtle.`} />
             </div>
           );
         })}
@@ -100,54 +104,39 @@ export function FruitPanel({ r, set, uh, a }: { r: Recipe; set: Setter; uh: Unit
   );
 }
 
-const BAND_STYLE: Record<string, string> = {
-  imperceptible: 'bg-stone-300 text-stone-700',
-  subtle: 'bg-emerald-200 text-emerald-900',
-  typical: 'bg-emerald-400 text-emerald-950',
-  bold: 'bg-amber-300 text-amber-950',
-  assertive: 'bg-orange-400 text-orange-950',
-  astronomical: 'bg-red-500 text-white',
-  'unit-error': 'bg-red-700 text-white',
-};
-
-export function SpicePanel({ r, set, uh, a }: { r: Recipe; set: Setter; uh: UnitHelpers; a: Analysis | null }) {
+export function BotanicalPanel({ r, set, uh, a, kind }: { r: Recipe; set: Setter; uh: UnitHelpers; a: Analysis | null; kind: 'spices' | 'flowers' }) {
   const V = a?.whole.volumeL ?? r.targetVolumeL;
+  const groups: Spice['group'][] = kind === 'spices' ? ['spice', 'adjunct'] : ['floral', 'herb'];
+  const options = SPICES.filter((x) => groups.includes(x.group));
+  const rows = r.spices.map((s, i) => ({ s, i, sp: spiceById(s.spiceId) })).filter(({ sp }) => groups.includes(sp.group));
+  const first = options[0];
   return (
     <Card
-      title="Spices & Adjuncts (Metheglin)"
-      icon="🌿"
-      actions={<button className="btn-ghost" onClick={() => set({ spices: [...r.spices, { uid: uid(), spiceId: 'cinnamon', grams: Number((0.6 * V).toFixed(1)) }] })}>+ Spice</button>}
+      title={kind === 'spices' ? 'Spices & Adjuncts (Metheglin)' : 'Flowers & Herbs'}
+      icon={kind === 'spices' ? '🌿' : '🌸'}
+      actions={<button className="btn-ghost" onClick={() => set({ spices: [...r.spices, { uid: uid(), spiceId: first.id, grams: Number((first.typical * V).toFixed(1)) }] })}>+ {kind === 'spices' ? 'Spice' : 'Flower/herb'}</button>}
     >
       <div className="flex flex-col gap-3">
-        {r.spices.map((s, i) => {
-          const sp = spiceById(s.spiceId);
+        {rows.map(({ s, i, sp }) => {
           const gpl = V > 0 ? s.grams / V : 0;
-          const band = spiceBand(sp, gpl);
-          const pct = Math.min(100, (gpl / sp.max) * 100);
           const upd = (p: Partial<typeof s>) => set({ spices: r.spices.map((x, j) => (j === i ? { ...x, ...p } : x)) });
           return (
             <div key={s.uid} className="rounded-lg border border-stone-200 p-2 dark:border-stone-800">
               <div className="flex items-end gap-2">
-                <Select className="flex-1" label="Spice" value={s.spiceId} onChange={(spiceId) => upd({ spiceId })} options={SPICES.map((x) => ({ value: x.id, label: x.name }))} />
+                <Select className="flex-1" label={kind === 'spices' ? 'Spice' : 'Botanical'} value={s.spiceId} onChange={(spiceId) => upd({ spiceId })} options={options.map((x) => ({ value: x.id, label: x.name }))} />
                 <NumberField className="w-28" label="Amount" value={s.grams} onChange={(grams) => upd({ grams })} unit="g" step={0.1} decimals={2} />
-                <RemoveButton label="Remove spice" onClick={() => set({ spices: r.spices.filter((_, j) => j !== i) })} />
+                <RemoveButton label="Remove" onClick={() => set({ spices: r.spices.filter((_, j) => j !== i) })} />
               </div>
-              <div className="mt-2">
-                <div className="relative h-2 rounded-full bg-gradient-to-r from-stone-200 via-emerald-300 via-60% to-red-400 dark:from-stone-700">
-                  <div className="absolute top-1/2 h-4 w-1 -translate-y-1/2 rounded bg-stone-900 dark:bg-white" style={{ left: `calc(${pct}% - 2px)` }} aria-hidden />
-                </div>
-                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-stone-500 dark:text-stone-400">
-                  <span className={`rounded px-1.5 py-0.5 font-medium ${BAND_STYLE[band]}`}>{band}</span>
-                  <span className="tabular">
-                    {gpl.toFixed(3)} g/L{uh.u === 'imperial' && ` (${(gpl * L_PER_GAL).toFixed(2)} g/gal)`} · subtle {sp.subtle} · typical {sp.typical} · bold {sp.bold} · max {sp.max} g/L
-                  </span>
-                  <Tip>{sp.notes} Contact {sp.contactDays[0]}–{sp.contactDays[1]} days ({sp.form}). Bands are practitioner consensus — taste as you go.</Tip>
-                </div>
-              </div>
+              <DoseMeter bands={sp} dose={gpl} unit="g/L" extra={uh.u === 'imperial' ? `${(gpl * L_PER_GAL).toFixed(2)} g/gal` : undefined}
+                tip={`${sp.notes} Contact ${sp.contactDays[0]}–${sp.contactDays[1]} days (${sp.form}). Bands are practitioner consensus, so taste as you go.`} />
             </div>
           );
         })}
-        {r.spices.length === 0 && <p className="text-sm text-stone-500">No spices. Check the Mead Maker's Brain for pairing ideas.</p>}
+        {rows.length === 0 && (
+          <p className="text-sm text-stone-500">
+            {kind === 'spices' ? 'No spices yet.' : 'No flowers or herbs yet. Try elderflower, meadowsweet or hibiscus.'} The Mead Maker's Brain has pairing ideas.
+          </p>
+        )}
       </div>
     </Card>
   );

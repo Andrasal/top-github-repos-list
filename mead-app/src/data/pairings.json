@@ -1,44 +1,272 @@
 [
-  { "a": "apple", "b": "cinnamon", "note": "Classic cyser spice." },
-  { "a": "apple-juice", "b": "cinnamon", "note": "Classic cyser spice." },
-  { "a": "apple-juice", "b": "oak", "note": "Oaked cyser gains structure." },
-  { "a": "pear", "b": "cardamom", "note": "Cardamom lifts pear's delicate aromatics." },
-  { "a": "pear", "b": "vanilla", "note": "Poached-pear dessert profile." },
-  { "a": "sweet-cherry", "b": "vanilla", "note": "Cherry-vanilla — the dessert-mead benchmark." },
-  { "a": "tart-cherry", "b": "vanilla", "note": "Vanilla rounds sour cherry." },
-  { "a": "tart-cherry", "b": "cacao", "note": "Black-forest profile." },
-  { "a": "sweet-cherry", "b": "cacao", "note": "Black-forest profile." },
-  { "a": "raspberry", "b": "cacao", "note": "Raspberry-chocolate truffle." },
-  { "a": "raspberry", "b": "rose", "note": "Rose amplifies raspberry's floral ketone." },
-  { "a": "strawberry", "b": "vanilla", "note": "Strawberries & cream." },
-  { "a": "strawberry", "b": "black-pepper", "note": "Pepper sharpens strawberry; tiny dose." },
-  { "a": "blackberry", "b": "oak", "note": "Oak tames bramble tannin." },
-  { "a": "blackberry", "b": "cinnamon", "note": "Bramble pie." },
-  { "a": "blueberry", "b": "lavender", "note": "Floral-berry; keep lavender subtle." },
-  { "a": "blueberry", "b": "cinnamon", "note": "Blueberry pie." },
-  { "a": "peach", "b": "ginger", "note": "Ginger brightens peach." },
-  { "a": "peach", "b": "vanilla", "note": "Peaches & cream." },
-  { "a": "apricot", "b": "cardamom", "note": "Middle-eastern stone-fruit pairing." },
-  { "a": "plum", "b": "star-anise", "note": "Chinese five-spice direction." },
-  { "a": "plum", "b": "cinnamon", "note": "Spiced plum." },
-  { "a": "mango", "b": "chili", "note": "Mango-habanero style capsicumel." },
-  { "a": "mango", "b": "ginger", "note": "Tropical-spice." },
-  { "a": "pineapple", "b": "ginger", "note": "Bright tropical heat." },
-  { "a": "cranberry", "b": "orange-zest", "note": "Holiday cranberry-orange." },
-  { "a": "pomegranate", "b": "hibiscus", "note": "Tart, deep red rhodomel-style." },
-  { "a": "grape", "b": "oak", "note": "Pyments behave like wine — oak suits them." },
-  { "a": "black-currant", "b": "vanilla", "note": "Vanilla softens cassis acidity." },
-  { "a": "elderberry", "b": "clove", "note": "Traditional mulled profile — tiny clove dose." },
-  { "a": "banana", "b": "cinnamon", "note": "Banana-bread." },
-  { "a": "honey:buckwheat", "b": "blackberry", "note": "Dark honey needs dark fruit." },
-  { "a": "honey:buckwheat", "b": "tart-cherry", "note": "Molasses + sour cherry." },
-  { "a": "honey:orange-blossom", "b": "cardamom", "note": "Citrus-floral + cardamom." },
-  { "a": "honey:orange-blossom", "b": "peach", "note": "Delicate and fragrant." },
-  { "a": "honey:acacia", "b": "pear", "note": "Showcase delicacy." },
-  { "a": "honey:avocado", "b": "coffee", "note": "Caramel-coffee sack." },
-  { "a": "honey:meadowfoam", "b": "vanilla", "note": "Marshmallow dessert mead." },
-  { "a": "honey:heather", "b": "ginger", "note": "Robust honey can carry heat." },
-  { "a": "honey:clover", "b": "raspberry", "note": "Neutral base lets fruit lead." },
-  { "a": "honey:wildflower", "b": "blueberry", "note": "Forgiving everyday melomel." },
-  { "a": "honey:tupelo", "b": "vanilla", "note": "Buttery-vanilla sack." }
+ {
+  "a": "apple",
+  "b": "cinnamon",
+  "note": "Classic cyser spice."
+ },
+ {
+  "a": "apple-juice",
+  "b": "cinnamon",
+  "note": "Classic cyser spice."
+ },
+ {
+  "a": "apple-juice",
+  "b": "oak",
+  "note": "Oaked cyser gains structure."
+ },
+ {
+  "a": "pear",
+  "b": "cardamom",
+  "note": "Cardamom lifts pear's delicate aromatics."
+ },
+ {
+  "a": "pear",
+  "b": "vanilla",
+  "note": "Poached-pear dessert profile."
+ },
+ {
+  "a": "sweet-cherry",
+  "b": "vanilla",
+  "note": "Cherry-vanilla — the dessert-mead benchmark."
+ },
+ {
+  "a": "tart-cherry",
+  "b": "vanilla",
+  "note": "Vanilla rounds sour cherry."
+ },
+ {
+  "a": "tart-cherry",
+  "b": "cacao",
+  "note": "Black-forest profile."
+ },
+ {
+  "a": "sweet-cherry",
+  "b": "cacao",
+  "note": "Black-forest profile."
+ },
+ {
+  "a": "raspberry",
+  "b": "cacao",
+  "note": "Raspberry-chocolate truffle."
+ },
+ {
+  "a": "raspberry",
+  "b": "rose",
+  "note": "Rose amplifies raspberry's floral ketone."
+ },
+ {
+  "a": "strawberry",
+  "b": "vanilla",
+  "note": "Strawberries & cream."
+ },
+ {
+  "a": "strawberry",
+  "b": "black-pepper",
+  "note": "Pepper sharpens strawberry; tiny dose."
+ },
+ {
+  "a": "blackberry",
+  "b": "oak",
+  "note": "Oak tames bramble tannin."
+ },
+ {
+  "a": "blackberry",
+  "b": "cinnamon",
+  "note": "Bramble pie."
+ },
+ {
+  "a": "blueberry",
+  "b": "lavender",
+  "note": "Floral-berry; keep lavender subtle."
+ },
+ {
+  "a": "blueberry",
+  "b": "cinnamon",
+  "note": "Blueberry pie."
+ },
+ {
+  "a": "peach",
+  "b": "ginger",
+  "note": "Ginger brightens peach."
+ },
+ {
+  "a": "peach",
+  "b": "vanilla",
+  "note": "Peaches & cream."
+ },
+ {
+  "a": "apricot",
+  "b": "cardamom",
+  "note": "Middle-eastern stone-fruit pairing."
+ },
+ {
+  "a": "plum",
+  "b": "star-anise",
+  "note": "Chinese five-spice direction."
+ },
+ {
+  "a": "plum",
+  "b": "cinnamon",
+  "note": "Spiced plum."
+ },
+ {
+  "a": "mango",
+  "b": "chili",
+  "note": "Mango-habanero style capsicumel."
+ },
+ {
+  "a": "mango",
+  "b": "ginger",
+  "note": "Tropical-spice."
+ },
+ {
+  "a": "pineapple",
+  "b": "ginger",
+  "note": "Bright tropical heat."
+ },
+ {
+  "a": "cranberry",
+  "b": "orange-zest",
+  "note": "Holiday cranberry-orange."
+ },
+ {
+  "a": "pomegranate",
+  "b": "hibiscus",
+  "note": "Tart, deep red rhodomel-style."
+ },
+ {
+  "a": "grape",
+  "b": "oak",
+  "note": "Pyments behave like wine — oak suits them."
+ },
+ {
+  "a": "black-currant",
+  "b": "vanilla",
+  "note": "Vanilla softens cassis acidity."
+ },
+ {
+  "a": "elderberry",
+  "b": "clove",
+  "note": "Traditional mulled profile — tiny clove dose."
+ },
+ {
+  "a": "banana",
+  "b": "cinnamon",
+  "note": "Banana-bread."
+ },
+ {
+  "a": "honey:buckwheat",
+  "b": "blackberry",
+  "note": "Dark honey needs dark fruit."
+ },
+ {
+  "a": "honey:buckwheat",
+  "b": "tart-cherry",
+  "note": "Molasses + sour cherry."
+ },
+ {
+  "a": "honey:orange-blossom",
+  "b": "cardamom",
+  "note": "Citrus-floral + cardamom."
+ },
+ {
+  "a": "honey:orange-blossom",
+  "b": "peach",
+  "note": "Delicate and fragrant."
+ },
+ {
+  "a": "honey:acacia",
+  "b": "pear",
+  "note": "Showcase delicacy."
+ },
+ {
+  "a": "honey:avocado",
+  "b": "coffee",
+  "note": "Caramel-coffee sack."
+ },
+ {
+  "a": "honey:meadowfoam",
+  "b": "vanilla",
+  "note": "Marshmallow dessert mead."
+ },
+ {
+  "a": "honey:heather",
+  "b": "ginger",
+  "note": "Robust honey can carry heat."
+ },
+ {
+  "a": "honey:clover",
+  "b": "raspberry",
+  "note": "Neutral base lets fruit lead."
+ },
+ {
+  "a": "honey:wildflower",
+  "b": "blueberry",
+  "note": "Forgiving everyday melomel."
+ },
+ {
+  "a": "honey:tupelo",
+  "b": "vanilla",
+  "note": "Buttery-vanilla sack."
+ },
+ {
+  "a": "pear",
+  "b": "elderflower",
+  "note": "Elderflower and pear: an orchard-hedgerow classic."
+ },
+ {
+  "a": "strawberry",
+  "b": "elderflower",
+  "note": "Summer-cup floral lift."
+ },
+ {
+  "a": "honey:acacia",
+  "b": "elderflower",
+  "note": "Delicate honey, delicate flower."
+ },
+ {
+  "a": "honey:orange-blossom",
+  "b": "orange-blossom-flower",
+  "note": "Doubles down on neroli."
+ },
+ {
+  "a": "honey:wildflower",
+  "b": "meadowsweet",
+  "note": "The historic mead herb."
+ },
+ {
+  "a": "honey:clover",
+  "b": "linden",
+  "note": "Soft, honeyed floral."
+ },
+ {
+  "a": "peach",
+  "b": "jasmine",
+  "note": "White-tea peach."
+ },
+ {
+  "a": "apricot",
+  "b": "lavender",
+  "note": "Provençal stone fruit."
+ },
+ {
+  "a": "cranberry",
+  "b": "rosehip",
+  "note": "Tart red hedgerow."
+ },
+ {
+  "a": "honey:heather",
+  "b": "heather-tips",
+  "note": "Heather on heather: Scottish style."
+ },
+ {
+  "a": "mango",
+  "b": "butterfly-pea",
+  "note": "Sunset-coloured layers for show."
+ },
+ {
+  "a": "raspberry",
+  "b": "mint",
+  "note": "Mojito-style lift."
+ }
 ]

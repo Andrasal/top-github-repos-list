@@ -13,7 +13,7 @@ export function SulfitePanel({ r, set, a, uh }: { r: Recipe; set: (p: Partial<Re
   const p = a.sulfite;
   const totalPct = Math.min(100, (p.after.totalPpm / SO2_LIMIT_US_TOTAL) * 100);
   return (
-    <Card title="Sulfite & Stabilisation" icon="🧂">
+    <Card title="Sulfite & Stabilisation" icon="🧂" id="sulfite">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <NumberField label="pH (measured)" value={so.pH} onChange={(v) => upd({ pH: v })} step={0.01} min={2.8} max={4.6} decimals={2}
           hint="Measure with a calibrated meter. Each 0.1 pH roughly changes the free SO₂ you need by 25 %." />
@@ -78,13 +78,16 @@ export function SulfitePanel({ r, set, a, uh }: { r: Recipe; set: (p: Partial<Re
         </div>
       </details>
 
-      <ul className="mt-3 flex flex-col gap-2">
-        {p.warnings.map((w) => (
+      <details className="mt-3 text-sm">
+        <summary className="cursor-pointer font-medium">Notes</summary>
+      <ul className="mt-2 flex flex-col gap-2">
+        {p.warnings.filter((w) => w.severity === 'info').map((w) => (
           <li key={w.text} className={`rounded-lg border p-2 text-xs ${SEV[w.severity]}`}>
             {w.text} <Cite ids={w.source} />
           </li>
         ))}
       </ul>
+      </details>
       <p className="mt-2 flex items-center gap-1 text-xs text-stone-500">
         <span className="font-mono">molecular = free ÷ (1 + 10^(pH − 1.81))</span> · K-meta = 57.6 % SO₂
         <Tip>2 × 64.07 g/mol SO₂ per 222.32 g/mol K₂S₂O₅. Dissolve the dose in a little water or mead, stir it in gently, and re-measure free SO₂ after 24–48 h.</Tip>

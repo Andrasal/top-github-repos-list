@@ -4,6 +4,7 @@
  * so the workbook recalculates when edited in Excel or after import into Google Sheets.
  */
 import ExcelJS from 'exceljs';
+export { ensureExcel } from './excel-loader';
 import type { Analysis } from './recipe';
 import { fruitById, honeyById, spiceById, sugarById } from './db';
 import { spiceBand } from './flavor';
@@ -106,6 +107,18 @@ export function buildWorkbook(a: Analysis, opts: { generated?: Date } = {}): Exc
   });
   s.getCell('A24').value = `Yeast: ${a.yeast.name} (${a.yeast.tolerance} % tolerance, ${a.demand} N demand). Protocol: ${PROTOCOL_LABELS[r.protocol]}.`;
   s.getCell('A24').font = { italic: true };
+  section(s, 26, 'Predicted profile');
+  s.mergeCells('A27:D27');
+  s.getCell('A27').value = a.tastingNote;
+  s.getCell('A27').alignment = { wrapText: true, vertical: 'top' };
+  s.getRow(27).height = 48;
+  s.getCell('A28').value = `Colour: ${a.color.name}`;
+  s.getCell('B28').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + a.color.hex.slice(1).toUpperCase() } };
+  Object.entries(a.profile).forEach(([k, v], i) => {
+    const rw = s.getRow(30 + i);
+    rw.values = [k, Number(v.toFixed(1)), '/ 10'];
+    bordered(rw);
+  });
 
   // ── Ingredients ────────────────────────────────────────────────────────────
   const ing = wb.addWorksheet('Ingredients', { views: [{ state: 'frozen', ySplit: 4 }] });
@@ -277,6 +290,29 @@ export function buildWorkbook(a: Analysis, opts: { generated?: Date } = {}): Exc
   a.suggestions.forEach((x) => {
     ad.getRow(pr++).values = ['', '', `${x.forName} + ${x.partnerName}`, x.note, x.startDoseGPerL != null ? `Start at ${x.startDoseGPerL} g/L` : ''];
   });
+
+  // ── Batch log ──────────────────────────────────────────────────────────────
+  const log = r.log;
+  if (log?.pitchedAt || log?.readings?.length) {
+    const lg = wb.addWorksheet('Log', { views: [{ state: 'frozen', ySplit: 4 }] });
+    lg.columns = [{ width: 22 }, { width: 10 }, { width: 10 }, { width: 12 }, { width: 40 }];
+    title(lg, 'Batch log', log.pitchedAt ? `Pitched ${new Date(log.pitchedAt).toLocaleString()}` : stamp, 'A1:E1');
+    lg.getRow(4).values = ['When', 'SG', 'Day', 'ABV so far %', 'Note'];
+    header(lg.getRow(4));
+    const sorted = [...log.readings].sort((x, y) => Date.parse(x.at) - Date.parse(y.at));
+    const t0 = log.pitchedAt ? Date.parse(log.pitchedAt) : sorted[0] ? Date.parse(sorted[0].at) : 0;
+    sorted.forEach((rd, i) => {
+      const rr = 5 + i;
+      const rw = lg.getRow(rr);
+      const og = sorted[0].sg;
+      rw.values = [new Date(rd.at), rd.sg, (Date.parse(rd.at) - t0) / 86_400_000, f(`IF(B$5>B${rr},(76.08*(B$5-B${rr})/(1.775-B$5))*(B${rr}/0.794),0)`, og > rd.sg ? (76.08 * (og - rd.sg) / (1.775 - og)) * (rd.sg / 0.794) : 0), rd.note ?? ''];
+      rw.getCell(1).numFmt = 'yyyy-mm-dd hh:mm';
+      rw.getCell(2).numFmt = '0.000';
+      rw.getCell(3).numFmt = '0.0';
+      rw.getCell(4).numFmt = '0.00';
+      bordered(rw);
+    });
+  }
 
   // ── Sources ────────────────────────────────────────────────────────────────
   const src = wb.addWorksheet('Sources');

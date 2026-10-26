@@ -9,7 +9,7 @@ const STRENGTH: Record<string, string> = {
 export function ResultsPanel({ a, uh, onProof }: { a: Analysis; uh: UnitHelpers; onProof: () => void }) {
   const o = a.occupancy;
   return (
-    <Card title="Gravity, Alcohol & Volume" icon="📈">
+    <Card title="Gravity, Alcohol & Volume" icon="📈" id="results">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         <Stat label="Original gravity" value={a.og.toFixed(3)} sub={`${a.yan.brix.toFixed(1)} °Bx${a.hasSecondaryFruit ? ` · effective ${a.effectiveOg.toFixed(3)}` : ''}`} />
         <Stat label="Predicted FG" value={a.fg.fg.toFixed(3)} sub={a.fg.limitedBy === 'yeast' ? 'Limited by yeast tolerance' : a.fg.limitedBy === 'target' ? 'Your target FG' : 'Ferments dry'} />
@@ -37,6 +37,7 @@ export function ResultsPanel({ a, uh, onProof }: { a: Analysis; uh: UnitHelpers;
           <dt className="text-stone-500">After fruit breakdown</dt><dd className="text-right">{uh.fmtVol(o.brokenDownL)}</dd>
           <dt className="text-stone-500">Lost to pulp / lees</dt><dd className="text-right">{uh.fmtVol(o.fruitRetainedL)} / {uh.fmtVol(o.leesLossL)}</dd>
           <dt className="font-medium">Expected recovered</dt><dd className="text-right font-medium">{uh.fmtVol(o.recoveredL)}</dd>
+          <dt className="text-stone-500">Bottles (750 / 500 / 375 mL)</dt><dd className="text-right">{a.bottles.slice(0, 3).map((b) => b.count).join(' / ')}</dd>
           <dt className="text-stone-500">⅓ / ½ sugar break</dt><dd className="text-right">{a.breaks.oneThird.toFixed(3)} / {a.breaks.half.toFixed(3)}</dd>
         </dl>
       </div>

@@ -3,7 +3,7 @@ import { SOURCES } from '../lib/sources';
 
 export function Card({ title, icon, children, actions, id }: { title: string; icon?: string; children: ReactNode; actions?: ReactNode; id?: string }) {
   return (
-    <section id={id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900/60">
+    <section id={id} className="scroll-mt-40 rounded-xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900/60">
       <header className="mb-3 flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-base font-semibold">
           {icon && <span aria-hidden>{icon}</span>}

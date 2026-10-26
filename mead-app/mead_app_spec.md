@@ -539,3 +539,78 @@ field in `sources.ts`, shown in the Sources drawer and the export's Sources shee
 | **TOSNA** | Original site (tosna.org) no longer resolves; no license found | **Logic only.** Method implemented independently and attributed by name; no text or calculator code reproduced |
 | **Mead Made Right** | Terms could not be verified | **Logic only.** Uses the general industry relation Brix × 10 × demand factor |
 | ExcelJS (npm dependency) | MIT licence | Bundled under MIT |
+
+
+---
+
+## 16. Flags on Demand (flags.ts) — UX rule
+Warnings and errors **never interrupt the recipe flow**. They are collected by `collectFlags()`
+from advisories (warning/error), nutrient guard rails, sulfite limits and the batch log (stuck
+ferment, overdue dose), and shown only when the user taps **Check recipe**. The button carries a
+quiet neutral count; it turns dark (not red) when a must-fix error exists.
+Inline, the app shows only positive or neutral information: dose meters, numbers, suggestions
+(tip/info) and pairings. In-band spice doses produce no advisory, since the meter already shows them.
+
+## 17. Dose Bands for Fruit, Flowers & Herbs
+One classifier `doseBand(bands, dose)` serves spices and flowers (g/L) and fruit (kg/L of final
+volume): imperceptible < subtle ≤ typical ≤ bold < assertive ≤ max < astronomical, with
+"check units" above 3 × max. Every fruit has its **own** scale, because intensity differs
+widely. 0.3 kg/L is bold for raspberry and subtle for blueberry.
+
+| Fruit (kg/L) | subtle | typical | bold | max |
+|---|---|---|---|---|
+| Black currant, elderberry | 0.05 | 0.12 | 0.20 | 0.35 |
+| Cranberry | 0.06 | 0.15 | 0.25 | 0.40 |
+| Raspberry | 0.08 | 0.18 | 0.30 | 0.50 |
+| Blackberry | 0.10 | 0.22 | 0.35 | 0.60 |
+| Tart cherry, pomegranate | 0.10 | 0.25 | 0.40 | 0.60 |
+| Strawberry, sweet cherry, apricot, plum, mango, pineapple | 0.12–0.15 | 0.30 | 0.45 | 0.70 |
+| Blueberry, peach | 0.15 | 0.35 | 0.50 | 0.80 |
+| Apple, pear, grape | 0.20 | 0.40 | 0.60 | 0.9–1.0 |
+| Apple juice (cyser) | 0.20 | 0.50 | 0.70 | 1.00 |
+| Banana | 0.05 | 0.12 | 0.20 | 0.30 |
+
+Botanicals carry a `group` (spice · adjunct · floral · herb) and appear in two panels:
+*Spices & Adjuncts* and *Flowers & Herbs*. New florals and herbs: elderflower, meadowsweet, orange
+blossom, jasmine, butterfly pea, linden, calendula, rosehip, heather tips, mint, thyme. Optional
+fields: `flavour` (weight; butterfly pea 0.15, as it is mostly colour) and `acidPerG` (hibiscus 0.6,
+rosehip 0.3 g/L TA per g/L, fed into the TA estimate). Fruit above `max` raises an error flag, and
+above `bold` a warning. All bands are practitioner consensus (`practice`, `schramm`).
+
+## 18. Flavour Profile, Tasting Note, Colour (profile.ts)
+Nine 0–10 axes from the recipe's numbers (illustrative, not sensory data):
+* Sweetness = (FG − 0.994)/0.046 × 10 · Acidity = (TA − 2)/7 × 10
+* Body = (FG − 0.990)×120 + ABV×0.15 + fruit kg/L×2 · Warmth = (ABV − 3)/17 × 10
+* Tannin = Σ fruit tannin × min(1.5, dose/typical) × 1.6 + oak/cacao/coffee intensity × 3
+* Fruit / Spice / Floral = Σ (dose/typical × flavour weight) × 5
+* Honey = varietal intensity × min(1.2, honey kg/L / 0.3) × 3.3 − masking by fruit, spice and floral
+Tasting note: sweetness, body and strength words, then up to three lead aromas ranked by dose/typical,
+then acidity, tannin and finish words. Colour: RGB blend from near water-white toward the honey
+colour (by honey kg/L), then toward each fruit's juice colour and pigmenting botanicals (hibiscus,
+butterfly pea, rosehip…) by dose/typical, and named by hue and lightness.
+Bottles: floor(recovered L / size) for 750 / 500 / 375 / 330 mL.
+
+## 19. Designer (designer.ts) & Presets (presets.ts)
+* `ogForTarget(ABV, FG)` inverts the Alternative ABV equation by bisection.
+* `designForTarget(recipe, ABV, FG)` scales the honey (keeping varietal ratios) by bisection on the
+  analysed effective OG, so fruit and sugar contributions are counted. A finish above the dry
+  baseline becomes the recipe's target FG. Notes: yeast tolerance, over-volume, stabilisation.
+* `scaleRecipe(recipe, k)` scales volume, water and every ingredient; OG, ABV and dose bands are invariant (tested).
+* 10 style presets defined per 10 L and scaled to the current batch. Each must analyse with
+  **zero error flags** (unit tested).
+
+## 20. Batch Log (tracker.ts)
+Stored in the recipe (`log`: pitch time, SG readings, doses done). `trackerStatus(log, OG, FG, now)`:
+* Doses 1–3 due at pitch + 24/48/72 h (overdue 12 h after). Dose 4 due at the ⅓ break
+  (from **measured** OG) or day 7, whichever comes first.
+* Live ABV from the first reading (Alternative equation) and % sugar used.
+* Stage: lag, active, slowing (past ¾), **stable** (≥3 readings over ≥2.5 days, drop < 0.0015,
+  within 0.004 of FG), or **stuck** (the same, but above FG + 0.004 → flag).
+* SVG chart of SG over days with ⅓-break and expected-FG reference lines.
+* Exported as a *Log* sheet with live ABV formulas.
+
+## 21. Performance
+* Analysis runs on `useDeferredValue(recipe)`, so typing is never blocked by recalculation.
+* The target solver (~60 analyses) runs only while its panel is open.
+* Artifact build: ExcelJS loads from cdnjs (pinned 4.4.0) on the first export instead of being
+  inlined. The page dropped from 1.2 MB to ~320 KB. The normal build keeps it as a lazy chunk.

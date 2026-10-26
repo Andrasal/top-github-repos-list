@@ -9,6 +9,8 @@ import {
 } from './must';
 import { nutrientSchedule, Protocol, rehydration, yanRequirement } from './nutrients';
 import { sulfitePlan, SulfiteForm } from './sulfite';
+import { bottles, flavourProfile, meadColor, tastingNote, ProfileInput } from './profile';
+import { BatchLog, EMPTY_LOG } from './tracker';
 
 export interface Recipe {
   name: string;
@@ -26,6 +28,7 @@ export interface Recipe {
   targetFg: number | null;
   dryFg: number;
   sulfite: SulfiteSettings;
+  log: BatchLog;
 }
 
 /** SPEC §13 — stabilisation inputs. Volume defaults to the expected recovered volume. */
@@ -62,6 +65,7 @@ export const DEFAULT_RECIPE: Recipe = {
   targetFg: null,
   dryFg: DRY_FG_DEFAULT,
   sulfite: DEFAULT_SULFITE,
+  log: EMPTY_LOG,
 };
 
 function primaryComponents(r: Recipe): Component[] {
@@ -134,9 +138,18 @@ export function analyzeRecipe(r: Recipe) {
     volumeL: sulfiteVolumeL, pH: so.pH, currentFreePpm: so.currentFreePpm, currentTotalPpm: so.currentTotalPpm,
     targetMolecularPpm: so.targetMolecularPpm, bindingPct: so.bindingPct, form: so.form, sorbate: so.sorbate ?? r.targetFg != null,
   });
-  for (const w of sulfite.warnings.filter((x) => x.severity === 'error')) {
-    flavor.advisories.unshift({ id: `so2-${w.text.slice(0, 14)}`, severity: 'error', category: 'process', title: 'Sulfite limit', detail: w.text, source: w.source });
+  for (const w of sulfite.warnings) {
+    if (w.severity === 'info') continue;
+    flavor.advisories.unshift({ id: `so2-${w.text.slice(0, 14)}`, severity: w.severity, category: 'process', title: w.severity === 'error' ? 'Sulfite limit' : 'Sulfite', detail: w.text, source: w.source });
   }
+
+  const profileInput: ProfileInput = {
+    og: effectiveOg, fg: fgFinal.fg, abv, ta: flavor.ta, volumeL: whole.volumeL,
+    honeys: r.honeys.filter((h) => h.massKg > 0).map((h) => ({ honey: honeyById(h.honeyId), massKg: h.massKg })),
+    fruits: r.fruits.filter((f) => f.massKg > 0).map((f) => ({ fruit: fruitById(f.fruitId), massKg: f.massKg })),
+    spices: r.spices.filter((x) => x.grams > 0).map((x) => ({ spice: spiceById(x.spiceId), grams: x.grams })),
+  };
+  const profile = flavourProfile(profileInput);
 
   if (primary.overVolume) {
     flavor.advisories.unshift({
@@ -172,6 +185,10 @@ export function analyzeRecipe(r: Recipe) {
     contributions: contrib,
     occupancy: occ,
     sulfite,
+    profile,
+    tastingNote: tastingNote(profileInput, profile),
+    color: meadColor(profileInput),
+    bottles: bottles(occ.recoveredL + (whole.volumeL - primary.volumeL)),
     ...flavor,
   };
 }

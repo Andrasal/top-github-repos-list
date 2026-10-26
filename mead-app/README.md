@@ -12,13 +12,18 @@ A professional mead recipe builder, calculator and flavor advisor. React + TypeS
 - **Sulfite**: free, molecular and total SO₂ worked out from pH; K-meta, Na-meta, Campden or stock-solution doses; binding allowance; potassium sorbate for back-sweetening; US and EU legal limits.
 - **Export**: a styled Excel workbook with live formulas (opens in Google Sheets), plus a copy-and-paste summary for Sheets.
 - **Source licensing audit**: every source shows its licence status and how it is used.
+- **Check recipe**: warnings stay out of the way until you ask; one button shows every flag.
+- **Dose meters** for every fruit, flower, herb and spice, each on its own intensity scale.
+- **Flavour radar, tasting note and glass colour** predicted from the recipe.
+- **Hit a target**: choose an ABV and a finish, and it solves the honey. Also **batch scaling** and **10 style presets**.
+- **Batch log**: pitch timer, nutrient timeline, gravity chart, live ABV, and stuck/finished detection.
 - Metric by default, with an Imperial switch. A local JSON database of honeys, fruits, spices and yeasts, each row citing its source.
 
 ## Run
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm test         # Vitest — 63 tests
+npm test         # Vitest — 85 tests
 npm run build
 npm run build:single   # one self-contained HTML file
 ```

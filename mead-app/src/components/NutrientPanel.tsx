@@ -8,7 +8,7 @@ export function NutrientPanel({ a }: { a: Analysis }) {
   const s = a.schedule;
   const hasO = s.totals.fermaidO > 0, hasK = s.totals.fermaidK > 0, hasD = s.totals.dap > 0;
   return (
-    <Card title="Yeast Nutrition (SNA)" icon="🧬">
+    <Card title="Yeast Nutrition (SNA)" icon="🧬" id="nutrients">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         <Stat
           label="YAN target"
