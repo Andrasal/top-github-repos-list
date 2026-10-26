@@ -18,14 +18,14 @@ A professional mead recipe builder, calculator and flavor advisor. React + TypeS
 - **Hit a target**: choose an ABV and a finish, and it solves the honey. Also **batch scaling** and **10 style presets**.
 - **Batch log**: pitch timer, nutrient timeline, gravity chart, live ABV, and stuck/finished detection.
 - **Recipe library with versions**: saved recipes are never overwritten. Opening one gives you a copy and saving creates v2, v3… Synced to your Claude account when opened in Claude.
-- **AI recipe assistant**: describe a mead or a change and Claude designs or edits it, always saving a new version.
+- **AI recipe assistant**: describe a mead or a change and Claude designs or edits it, always saving a new version. Subscribers connect their own Claude API key (stays in their browser); without one the assistant is locked. Inside Claude it uses the viewer's Claude account.
 - Metric by default, with an Imperial switch. A local JSON database of honeys, fruits, spices and yeasts, each row citing its source.
 
 ## Run
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm test         # Vitest — 125 tests (incl. LibreOffice recalculation of the Excel export)
+npm test         # Vitest — 154 tests (incl. LibreOffice recalculation of the Excel export)
 npm run build
 npm run build:single   # one self-contained HTML file
 ```

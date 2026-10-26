@@ -764,3 +764,28 @@ outage. Changes:
   appends the app-computed OG, FG, ABV, pH and flags. For non-transient codes the view stays in simple mode.
 * Failures show the real error code under "Details" and a **Try again** button, which re-asks
   without duplicating the question. There are no automatic retry loops.
+
+## 25. Bring Your Own AI (src/lib/ai/, AiConnect) — added for selling the app
+Goal: subscribers connect **their own** Claude account; without one, the assistant is locked and every other feature still works.
+
+### 25.1 Which AI runs (in order)
+1. **Own key connected** → the subscriber's Anthropic API key, called straight from the browser with the official `@anthropic-ai/sdk` (`dangerouslyAllowBrowser: true`; the key is sent only to api.anthropic.com).
+2. **Running inside Claude** (artifact `sample` capability) → the viewer's Claude account, as in §24.
+3. **Neither** → locked: the ✨ button shows 🔒 and the chat shows "Connect your AI to unlock the assistant".
+
+A Claude.ai Pro/Max *chat* subscription cannot be linked to third-party apps; the assistant needs an API key from console.anthropic.com (pay-as-you-go, billed by Anthropic to the subscriber). Inside a Claude artifact, direct API calls are blocked by the page's network policy, so own-key mode is for the hosted build (`npm run build`).
+
+### 25.2 Key handling
+- Verified on connect with `client.models.list()`; must include `claude-opus-5-5`, else `not_found`.
+- Stored at `mead-lab:ai:v1`: localStorage when "Remember on this device" is ticked, sessionStorage otherwise; in-memory if storage is blocked. Disconnect clears both.
+- Shown masked (`sk-ant-…abcd`). Never logged, exported or synced.
+
+### 25.3 Request (skill defaults)
+- `client.beta.messages.stream` + `finalMessage()`; model `claude-opus-5-5`; `max_tokens` 32000; `thinking: {type: 'adaptive'}`; `output_config.effort: 'medium'`; system prompt = `instructions()` from §24.
+- Server-side fallback on by default: `fallbacks: 'default'` with beta `server-side-fallback-2026-07-01`. If the account rejects it (400 on the first call, before any output), retry once without it and remember for the session. When a backup model answers, the reply is noted and the declined model's partial text is dropped (text after the last `fallback` block only).
+- Tools = §24 ChatTools with `eager_input_streaming: true`. Because the server no longer validates inputs, each input is checked against its schema (`validate.ts`, tested to agree with Ajv) before running; a failure returns `{"INVALID_JSON": …}` as an `is_error` tool result. All results of a turn go back in one user message.
+- Stop reasons: `refusal` → stop, never run that turn's tools; `max_tokens` with a tool call → stop (`truncated`), without → show text as cut short; `pause_turn` → resend; cap 10 rounds.
+- Only an unparseable tool input is retried (max 2 in a row); SDK API errors are mapped by class: 401 `bad_key`, 403 `no_access`, 402 `billing`, 404 `not_found`, 429 `rate_limited`, 413 `too_large`, 529 `overloaded`, connection `network`, abort `cancelled`. Key problems offer an "AI settings" button.
+
+### 25.4 Selling checklist (outside this repo)
+Hosting (static), payments/subscriptions (Stripe, Paddle or Lemon Squeezy), accounts + cloud recipe storage to replace the Claude `db` capability, privacy policy (keys stay on device; recipes stored where?), terms, and the source-licence notes in §15.

@@ -21,6 +21,7 @@ import { useLibrary } from './components/useLibrary';
 import { LibraryPanel } from './components/LibraryPanel';
 import { DraftBar } from './components/DraftBar';
 import { ChatPanel } from './components/ChatPanel';
+import { useAiSettings } from './components/AiConnect';
 import { createEntry, deriveEntry, LibraryEntry, normaliseRecipe } from './lib/library';
 import { uid, unitHelpers } from './components/units';
 
@@ -61,6 +62,9 @@ export default function App() {
   const [recipe, setRecipe] = useState<Recipe>(initial.recipe);
   const [units, setUnits] = useState<UnitSystem>(initial.units);
   const [modal, setModal] = useState<ModalId>(null);
+  // The assistant is locked until the user connects an AI (own key), unless the page runs inside Claude
+  const aiKey = useAiSettings();
+  const aiLocked = !aiKey && !(window as unknown as { claude?: unknown }).claude;
   const [confirmReset, setConfirmReset] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   // Draft = an editable COPY. baseId = the saved version it was copied from (never modified).
@@ -217,10 +221,10 @@ export default function App() {
         </div>
       </div>
 
-      <button onClick={() => setModal('chat')} aria-label="Open the recipe assistant"
+      <button onClick={() => setModal('chat')} aria-label={aiLocked ? 'Open the recipe assistant (connect your AI to unlock)' : 'Open the recipe assistant'}
         className="fixed z-30 flex items-center gap-2 rounded-full bg-stone-900 px-4 py-3 text-sm font-semibold text-white shadow-lg hover:bg-stone-700 dark:bg-honey-400 dark:text-stone-950 dark:hover:bg-honey-300"
         style={{ right: 'max(16px, calc(env(safe-area-inset-right, 0px) + 16px))', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}>
-        <span aria-hidden>✨</span> Ask AI
+        <span aria-hidden>{aiLocked ? '🔒' : '✨'}</span> Ask AI
       </button>
       <footer className="mt-8 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-stone-500">
         <span>Guidance, not gospel: verify with a hydrometer, a pH meter and bench trials.</span>
