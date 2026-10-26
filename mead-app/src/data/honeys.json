@@ -8,9 +8,13 @@
   "character": "Variable, floral-fruity; a forgiving all-rounder for melomels and metheglins.",
   "source": [
    "nhb-honey",
-   "schramm"
+   "schramm",
+   "white-1962"
   ],
-  "color": "#d9a53b"
+  "color": "#d9a53b",
+  "ph": 3.9,
+  "freeAcidity": 22,
+  "lactoneAcidity": 7
  },
  {
   "id": "clover",
@@ -21,9 +25,13 @@
   "character": "Mild, clean and sweet; lets fruit and spice lead. Can taste neutral in traditionals.",
   "source": [
    "nhb-honey",
-   "schramm"
+   "schramm",
+   "white-1962"
   ],
-  "color": "#e8c35e"
+  "color": "#e8c35e",
+  "ph": 3.9,
+  "freeAcidity": 22,
+  "lactoneAcidity": 7
  },
  {
   "id": "orange-blossom",
@@ -34,9 +42,13 @@
   "character": "Delicate citrus-floral aromatics; easily masked — keep spice at or below the subtle dose.",
   "source": [
    "nhb-honey",
-   "schramm"
+   "schramm",
+   "white-1962"
   ],
-  "color": "#e6b84f"
+  "color": "#e6b84f",
+  "ph": 3.9,
+  "freeAcidity": 22,
+  "lactoneAcidity": 7
  },
  {
   "id": "tupelo",
@@ -46,9 +58,13 @@
   "intensity": 2,
   "character": "Buttery, floral, high fructose; elegant in traditionals and sacks.",
   "source": [
-   "nhb-honey"
+   "nhb-honey",
+   "white-1962"
   ],
-  "color": "#e2c06a"
+  "color": "#e2c06a",
+  "ph": 3.9,
+  "freeAcidity": 22,
+  "lactoneAcidity": 7
  },
  {
   "id": "acacia",
@@ -58,9 +74,13 @@
   "intensity": 1,
   "character": "Very light, vanilla-floral; a showcase for delicate fruit (pear, white peach).",
   "source": [
-   "nhb-honey"
+   "nhb-honey",
+   "white-1962"
   ],
-  "color": "#f0dc9a"
+  "color": "#f0dc9a",
+  "ph": 3.9,
+  "freeAcidity": 22,
+  "lactoneAcidity": 7
  },
  {
   "id": "meadowfoam",
@@ -70,9 +90,13 @@
   "intensity": 3,
   "character": "Marshmallow-vanilla; pairs with dessert profiles and stone fruit.",
   "source": [
-   "practice"
+   "practice",
+   "white-1962"
   ],
-  "color": "#d6a04a"
+  "color": "#d6a04a",
+  "ph": 3.9,
+  "freeAcidity": 22,
+  "lactoneAcidity": 7
  },
  {
   "id": "buckwheat",
@@ -83,9 +107,13 @@
   "character": "Dark, malty, molasses and barnyard; demands dark fruit (cherry, blackberry), baking spice and long ageing.",
   "source": [
    "nhb-honey",
-   "schramm"
+   "schramm",
+   "white-1962"
   ],
-  "color": "#5c2e12"
+  "color": "#5c2e12",
+  "ph": 4.1,
+  "freeAcidity": 30,
+  "lactoneAcidity": 7
  },
  {
   "id": "avocado",
@@ -95,9 +123,13 @@
   "intensity": 3,
   "character": "Dark, caramel-molasses; great in sacks and with coffee or cacao.",
   "source": [
-   "nhb-honey"
+   "nhb-honey",
+   "white-1962"
   ],
-  "color": "#6e3a14"
+  "color": "#6e3a14",
+  "ph": 4.1,
+  "freeAcidity": 30,
+  "lactoneAcidity": 7
  },
  {
   "id": "heather",
@@ -107,9 +139,13 @@
   "intensity": 3,
   "character": "Thixotropic, high moisture; bitter-floral and smoky. Stands up to strong spice.",
   "source": [
-   "white-1975",
-   "practice"
+   "practice",
+   "white-1962",
+   "white-1975"
   ],
-  "color": "#a65f22"
+  "color": "#a65f22",
+  "ph": 4.0,
+  "freeAcidity": 28,
+  "lactoneAcidity": 7
  }
 ]

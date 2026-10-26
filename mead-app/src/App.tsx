@@ -15,6 +15,7 @@ import { ExportPanel } from './components/ExportPanel';
 import { CheckPanel } from './components/CheckPanel';
 import { PresetPicker } from './components/PresetPicker';
 import { TrackerPanel } from './components/TrackerPanel';
+import { AcidityPanel } from './components/AcidityPanel';
 import { Modal } from './components/ui';
 import { uid, unitHelpers } from './components/units';
 
@@ -29,6 +30,8 @@ function load(): { recipe: Recipe; units: UnitSystem } {
       const recipe: Recipe = { ...DEFAULT_RECIPE, ...p.recipe };
       recipe.sulfite = { ...DEFAULT_SULFITE, ...recipe.sulfite };
       recipe.log = { ...EMPTY_LOG, ...recipe.log };
+      recipe.adjustments = recipe.adjustments ?? [];
+      recipe.alkalinityCaCO3 = recipe.alkalinityCaCO3 ?? 50;
       return { recipe, units: p.units === 'imperial' ? 'imperial' : 'metric' };
     }
   } catch {
@@ -42,6 +45,7 @@ const NAV = [
   { id: 'results', label: 'Results' },
   { id: 'brain', label: 'Brain' },
   { id: 'nutrients', label: 'Nutrients' },
+  { id: 'ph', label: 'pH' },
   { id: 'sulfite', label: 'Sulfite' },
   { id: 'log', label: 'Log' },
 ];
@@ -150,6 +154,7 @@ export default function App() {
                 onAddFruit={(fruitId) => set({ fruits: [...recipe.fruits, { uid: uid(), fruitId, massKg: Number((0.2 * V).toFixed(2)), stage: 'secondary' }] })}
               />
               <NutrientPanel a={analysis} />
+              <AcidityPanel r={recipe} set={set} a={analysis} />
               <SulfitePanel r={recipe} set={set} a={analysis} uh={uh} />
               <TrackerPanel r={recipe} set={set} a={analysis} t={tracker} now={now} />
             </>

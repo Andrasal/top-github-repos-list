@@ -43,7 +43,8 @@ describe('body / acid / fruit rules', () => {
   });
   it('estimates TA from fruit (citric → tartaric eq.)', () => {
     const ta = estimateTA([{ fruit: fruitById('raspberry'), massKg: 2, stage: 'primary' }], 10);
-    expect(ta).toBeCloseTo(0.5 + (2 * 0.93 * 16 * (75.04 / 64.04)) / 10, 6);
+    const r = fruitById('raspberry');
+    expect(ta).toBeCloseTo(0.5 + (2 * (1 - r.insoluble) * r.ta * (75.04 / 64.04)) / 10, 6);
   });
   it('classifies fruit loads', () => {
     expect(fruitLoadClass(0.1)).toBe('light');

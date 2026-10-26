@@ -331,8 +331,7 @@ staged fruit (½ primary, ½ secondary), larger headspace and a cap-punching sch
   fermentation, to taste via bench trials**.
 * `TA > target_max` with FG ≤ 1.006 → warning: may taste sharp; finish
   sweeter or deacidify with K₂CO₃ (≈ 1 g/L lowers TA by ≈ 1 g/L).
-* Very low-pH fruit (pH ≤ 3.0) at > 0.2 kg/L → warning: pH crash risk
-  during fermentation, monitor and buffer with K₂CO₃ if pH < 3.2.
+* *(Replaced by §22.4.)* pH advice now comes from the acid–base model, not a fixed fruit-pH rule.
 
 ### 8.3 Tannin & structure
 * Sweet/dessert finish and no tannic ingredient → tip: 0.1–0.3 g/L wine
@@ -464,15 +463,19 @@ meadmakers weigh them; dose bands show g/L and, in Imperial, g/gal too.
 
 ## 13. Sulfite Management (sulfite.ts)
 
-### 13.1 Equilibrium
+### 13.1 Equilibrium (revised 2026-10-26, pH audit)
 Free SO₂ = molecular SO₂ (antimicrobial) + bisulfite HSO₃⁻, in pH-dependent equilibrium:
 ```
-molecular fraction = 1 / (1 + 10^(pH − pKa1)),   pKa1 = 1.81 (aqueous, 20 °C)
-molecular = free × fraction ;   free_needed = molecular_target ÷ fraction
+molecular fraction = 1 / (1 + 10^(pH − pKa)) ;  free_needed = molecular_target ÷ fraction
+pKa = OIV apparent constant at 20 °C by alcohol (OIV-MA-AS323-04C Table II, I = 0.038):
+      0 % 1.723 · 5 % 1.819 · 10 % 1.916 · 15 % 2.014 · 20 % 2.114   (linear interpolation)
 ```
-Anchors (unit tested): pH 3.5 → 2.0 % molecular; pH 4.0 → 0.64 %; 0.8 mg/L at pH 3.5 → 40 mg/L free.
-Ethanol raises the effective pKa (`usseglio`), so true molecular SO₂ is a little **higher** than
-this estimate. The error is conservative, and the UI says so. (`margalit`, `zoecklein`)
+**Why it changed:** v1 used the aqueous pKa 1.81 for every mead. Alcohol raises the pKa, so at
+12 % ABV (pKa 1.955) a mead holds **~40 % more molecular SO₂** per mg of free SO₂ than the old
+formula assumed, and the old figures over-dosed SO₂ by about that much. Example: pH 3.6, 0.8 mg/L
+target: 50 mg/L free (old) → 36 mg/L free (new). Unit tests reproduce nine published Table III cells.
+20 °C is the standard measurement temperature, the one the 0.5–0.8 mg/L molecular targets refer to.
+**pH source:** the predicted finished pH from §22 by default; the user can tick "I measured it" and enter a meter reading.
 
 ### 13.2 Addition
 | Quantity | Formula |
@@ -539,6 +542,11 @@ field in `sources.ts`, shown in the Sources drawer and the export's Sources shee
 | **TOSNA** | Original site (tosna.org) no longer resolves; no license found | **Logic only.** Method implemented independently and attributed by name; no text or calculator code reproduced |
 | **Mead Made Right** | Terms could not be verified | **Logic only.** Uses the general industry relation Brix × 10 × demand factor |
 | ExcelJS (npm dependency) | MIT licence | Bundled under MIT |
+| FDA "Approximate pH of Foods" | US government work, public domain | Fruit pH ranges used directly |
+| White et al. 1962 (USDA Tech. Bull. 1261) | US government work, public domain | Honey pH and acidity averages |
+| Clemson Extension pH table | Copyrighted extension page | Cross-check only (facts) |
+| BRsquared fruit TA table | Copyrighted website | Cross-check only (facts); no table reproduced |
+| OIV SO₂ method, Pereira 2015, AHA water study | Copyrighted publications | Numeric facts and measurements only, cited |
 
 
 ---
@@ -614,3 +622,62 @@ Stored in the recipe (`log`: pitch time, SG readings, doses done). `trackerStatu
 * The target solver (~60 analyses) runs only while its panel is open.
 * Artifact build: ExcelJS loads from cdnjs (pinned 4.4.0) on the first export instead of being
   inlined. The page dropped from 1.2 MB to ~320 KB. The normal build keeps it as a lazy chunk.
+
+
+## 22. Acid–Base & pH Model (acidbase.ts, phmodel.ts) — added after the pH audit
+
+### 22.1 Why a model
+v1 never computed pH from the recipe. The sulfite panel used a fixed default of 3.6, and one rule
+flagged any fruit with juice pH ≤ 3.0 above 0.2 kg/L. pH also doesn't blend linearly: a buffered
+juice diluted 1:4 rises by under 0.35 pH (tested), while honey musts have almost no buffering.
+
+### 22.2 Chemistry
+Each ingredient becomes a pool of weak organic acids (mol/L) plus strong-base cations (eq/L).
+pH solves the charge balance `[H⁺] + cations = Σ Cᵢ·q̄ᵢ(pH) + [OH⁻]`, where q̄ is the mean
+negative charge from each acid's pKas (CRC, 25 °C). Activity correction (Davies equation) at ionic
+strength I: `pKa'ⱼ = pKaⱼ − 2j·0.51·(√I/(1+√I) − 0.3I)`.
+* **Fruit**: rebuilt from its measured juice pH and TA (dominant acid). Two linear equations give
+  acid C and cation K (`h + K = C·q̄`, `TA = nC − K`), so every juice reproduces its own pH exactly.
+  pH: FDA list, cross-checked with Clemson. TA: cross-checked with BRsquared (all within range).
+* **Honey**: gluconic acid (pKa 3.86). Cations are back-solved from honey pH 3.9 at 10 g/75 mL with
+  free acidity 22 meq/kg; lactones (7 meq/kg) hydrolyse by the finished stage (White 1962).
+  Darker honeys (buckwheat, avocado, heather) use higher acidity and pH.
+* **Water**: alkalinity (mg/L CaCO₃ ÷ 50 = meq/L) acts as strong base. Presets run from RO 0 to hard 250.
+* **Botanicals**: `acidPerG` (hibiscus, rosehip) as free citric acid, in the finished mead only.
+* **Additions**: tartaric, malic, citric or lactic acid (free acid); KHCO₃, K₂CO₃ or CaCO₃ (base eq/g).
+  Stage is "must" or "finished".
+* **Fermentation**: succinic acid = 0.0025 × sugar fermented (g/L) (0.63 g/L at 250 g/L, inside
+  the 0.5–1.5 g/L wine range), plus 0.4 g/L acetic acid and 0.5 meq/L cation uptake by yeast.
+
+### 22.3 Calibration (fitted, then frozen in tests)
+Free parameters were fitted by grid search, with succinic acid constrained to the literature range:
+honey pH shift −0.15, I = 0.05, succinic 0.0025, uptake 0.0005.
+
+| Published measurement | Measured | Model |
+|---|---|---|
+| AHA 2015, wildflower OG 1.100, distilled: must | 3.70 | 3.72 |
+| … finished, distilled water | 3.40 | 3.40 |
+| … finished, low-alkalinity water | 3.50 | 3.46 |
+| … finished, hard water (alkalinity assumed 250) | 3.80 | 3.69 |
+| Pereira 2015, 37 % honey + additions: must | 3.67 | 3.69 |
+| … finished | 3.55–3.68 | 3.60 |
+| … TA must (g/L tartaric) | 4.28 | 3.95 |
+
+RMS error over the four fitted pH points: **0.018**. The UI shows ±0.2 because honey pH varies from
+3.4 to 6.1. Known weakness: finished TA reads 1–1.5 g/L low against Pereira, whose stressed
+ferments probably made more acetic acid. Nutrient salts (DAP) are not modelled.
+
+### 22.4 Outputs & advice
+* Must and finished pH, must and finished TA, and each ingredient's ΔpH ("What moves the pH").
+* Fruit dose curve: finished pH at the subtle, typical, bold and max dose for each fruit.
+* "How much to reach a pH?": bisection on grams of tartaric acid or KHCO₃.
+* Advice: must pH < 3.0 → **flag** (yeast stress), with the KHCO₃ grams to reach 3.3. Must pH
+  3.0–3.2 → tip. Finished pH > 3.8 → tip, with the tartaric grams to reach 3.6. Finished TA from the
+  model feeds the acid-balance rules (§8.2).
+* Representative pH (must → finished), 3 kg wildflower in 10 L, spring water, fruit at its typical dose:
+  honey alone 3.80 → 3.45 · strawberry 3.57 → 3.42 · raspberry 3.52 → 3.38 · blueberry 3.46 → 3.32 ·
+  tart cherry 3.41 → 3.34 · sweet cherry 3.86 → 3.68 · peach 3.67 → 3.53 · mango 4.18 → 3.85 ·
+  black currant 3.22 → 3.14 · cranberry 2.94 → 2.88 (max dose 2.67 → 2.64) · hibiscus 1.5 g/L → 3.20.
+  Water: RO 3.39 · average tap 3.50 · hard 3.65 (finished, honey only).
+* SO₂ free needed for 0.8 mg/L molecular, v1 (pKa 1.81) vs v2 (12 % ABV, pKa 1.955):
+  pH 3.3: 26 → 18 · pH 3.5: 40 → 29 · pH 3.6: 50 → 36 · pH 3.8: 79 → 57 mg/L.

@@ -27,7 +27,7 @@ describe('export (SPEC §14)', () => {
   });
   it('sulfite sheet formulas reproduce the plan', () => {
     const s = a.sulfite.input;
-    const frac = 1 / (1 + 10 ** (s.pH - 1.81));
+    const frac = 1 / (1 + 10 ** (s.pH - a.sulfite.pKa));
     const add = Math.max(0, 0.8 / frac - s.currentFreePpm) / (1 - s.bindingPct / 100);
     expect(add).toBeCloseTo(a.sulfite.additionPpm, 8);
   });

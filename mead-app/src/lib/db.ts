@@ -6,7 +6,8 @@ import yeastsJson from '../data/yeasts.json';
 import pairingsJson from '../data/pairings.json';
 import type { AcidType, NDemand } from './constants';
 
-export interface Honey { id: string; name: string; solids: number; density: number; intensity: 1 | 2 | 3; character: string; color: string; source: string[] }
+export interface Honey { id: string; name: string; solids: number; density: number; intensity: 1 | 2 | 3; character: string; color: string; source: string[];
+  /** pH of a 10 g / 75 mL solution, free & lactone acidity (meq/kg) — White et al. 1962 averages. */ ph: number; freeAcidity: number; lactoneAcidity: number }
 
 /** SPEC §17 — dose bands shared by spices, flowers (g/L) and fruit (kg/L). */
 export interface DoseBands { subtle: number; typical: number; bold: number; max: number }
@@ -14,6 +15,7 @@ export interface Fruit {
   id: string; name: string; brix: number; insoluble: number; ta: number; acid: AcidType; ph: number;
   tannin: 0 | 1 | 2 | 3; yan: number; retention: number; notes: string; source: string[];
   subtle: number; typical: number; bold: number; max: number; color: string; aroma: string;
+  /** FDA / Clemson approximate pH range of the fruit. */ phRange: [number, number];
 }
 export interface Spice {
   id: string; name: string; form: string; subtle: number; typical: number; bold: number; max: number;

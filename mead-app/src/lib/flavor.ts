@@ -29,6 +29,8 @@ export interface FlavorInput {
   honeys: { honey: Honey; massKg: number }[];
   fruits: { fruit: Fruit; massKg: number; stage: 'primary' | 'secondary' }[];
   spices: { spice: Spice; grams: number }[];
+  /** From the acid–base model (SPEC §22); falls back to the simple TA estimate when absent. */
+  acidity?: { ta: number; mustPh: number; finishedPh: number; raiseMustG: number | null; lowerFinishedG: number | null };
 }
 
 /** SPEC §8.1 */
@@ -111,7 +113,7 @@ export function advise(x: FlavorInput): { advisories: Advisory[]; suggestions: S
   }
 
   // §8.2 Acid balance
-  const ta = estimateTA(x.fruits, V, x.spices);
+  const ta = x.acidity?.ta ?? estimateTA(x.fruits, V, x.spices);
   const [taMin, taMax] = TA_TARGETS[x.sweetness];
   if (ta < taMin) {
     const addG = ((taMin + taMax) / 2 - ta) * V;
@@ -124,9 +126,18 @@ export function advise(x: FlavorInput): { advisories: Advisory[]; suggestions: S
   } else if (ta > taMax && x.fg <= 1.006) {
     out.push({ id: 'acid-high', severity: 'warning', category: 'acid', title: 'May taste sharp', detail: `Estimated TA ${fmt(ta, 1)} g/L in a dry finish (target ${taMin}–${taMax}).`, suggestion: 'Back-sweeten to 1.010–1.015, choose a malic-reducing yeast (71B), or deacidify with K₂CO₃ (≈1 g/L lowers TA ≈1 g/L).', source: ['zoecklein', 'practice'] });
   }
-  const lowPh = x.fruits.filter((f) => f.stage === 'primary' && f.fruit.ph <= 3.0 && V > 0 && f.massKg / V > 0.2);
-  if (lowPh.length) {
-    out.push({ id: 'ph-crash', severity: 'warning', category: 'acid', title: 'pH-crash risk in primary', detail: `${lowPh.map((f) => f.fruit.name).join(', ')} at >0.2 kg/L will push must pH toward 3.0 or below; mead has little buffering.`, suggestion: 'Check pH daily; below 3.2 add K₂CO₃ in 0.25 g/L steps. Or move this fruit to secondary.', source: ['practice'] });
+  // §22.4 pH guidance from the acid–base model (thresholds: yeast stress below ~3.0, sluggish 3.0–3.2)
+  const pa = x.acidity;
+  if (pa) {
+    const src = ['pereira-2015', 'aha-water-2015', 'practice'];
+    if (pa.mustPh < 3.0) {
+      out.push({ id: 'ph-must-low', severity: 'warning', category: 'acid', title: `Primary must pH ≈ ${pa.mustPh.toFixed(2)}`, detail: 'Below about pH 3.0, yeast are stressed: expect a slow start and a higher risk of stalling.', suggestion: `${pa.raiseMustG != null ? `About ${fmt(pa.raiseMustG, 1)} g potassium bicarbonate raises the must to pH 3.3 (bench-trial first)` : 'Add potassium bicarbonate in small steps'}, or move the most acidic fruit to secondary.`, source: src });
+    } else if (pa.mustPh < 3.2) {
+      out.push({ id: 'ph-must-lowish', severity: 'tip', category: 'acid', title: `Must pH ≈ ${pa.mustPh.toFixed(2)}: on the low side`, detail: 'Most wine yeasts handle this, but check pH during the first week.', suggestion: 'Hold any acid additions until after fermentation.', source: src });
+    }
+    if (pa.finishedPh > 3.8) {
+      out.push({ id: 'ph-finished-high', severity: 'tip', category: 'acid', title: `Finished pH ≈ ${pa.finishedPh.toFixed(2)}: high`, detail: 'Above pH 3.8, SO₂ works poorly and spoilage bacteria grow more easily.', suggestion: pa.lowerFinishedG != null ? `About ${fmt(pa.lowerFinishedG, 1)} g tartaric acid brings it to pH 3.6. Add it after fermentation, to taste.` : 'Lower it with tartaric acid after fermentation.', source: ['oiv-so2', 'zoecklein'] });
+    }
   }
 
   // §8.3 Tannin & structure

@@ -11,7 +11,7 @@ import { spiceBand } from './flavor';
 import { PROTOCOL_LABELS } from './nutrients';
 import { SOURCES } from './sources';
 import { SULFITE_FORMS } from './sulfite';
-import { CAMPDEN_KMETA_G, KMETA_SO2_FRACTION, SO2_LIMIT_EU_MEAD, SO2_LIMIT_US_TOTAL, SO2_PKA1 } from './constants';
+import { CAMPDEN_KMETA_G, KMETA_SO2_FRACTION, SO2_LIMIT_EU_MEAD, SO2_LIMIT_US_TOTAL } from './constants';
 
 const C = {
   title: 'FF78350F', header: 'FFFDE68A', input: 'FFFEF3C7', section: 'FF92400E', border: 'FFD6D3D1',
@@ -76,6 +76,7 @@ export function buildWorkbook(a: Analysis, opts: { generated?: Date } = {}): Exc
     ['Sweetness', a.sweetness, '', `≈ ${a.residualSugarGPerL.toFixed(0)} g/L residual sugar`],
     ['Strength', a.strength, '', 'Traditional mead terms; own thresholds'],
     ['⅓ sugar break', a.breaks.oneThird, 'SG', 'Trigger for nutrient dose 4', '0.000'],
+    ['pH: must → finished (predicted)', `${a.ph.mustPh.toFixed(2)} → ${a.ph.finishedPh.toFixed(2)}`, '', `±${a.ph.uncertainty} · TA ${a.ph.mustTa.toFixed(1)} → ${a.ph.finishedTa.toFixed(1)} g/L tartaric`],
   ];
   rows.forEach(([k, v, u, n, fmt], i) => {
     const row = s.getRow(6 + i);
@@ -216,13 +217,13 @@ export function buildWorkbook(a: Analysis, opts: { generated?: Date } = {}): Exc
   header(w.getRow(4));
   const inputs: [string, number, string, string, string][] = [
     ['Volume to treat', so.input.volumeL, 'L', 'Defaults to expected recovered volume', '0.00'],
-    ['pH (measured)', so.input.pH, '', 'Measure. Do not estimate.', '0.00'],
+    ['pH', so.input.pH, '', a.recipe.sulfite?.usePredictedPh === false ? 'Measured' : 'Predicted by the acid–base model (±0.2). Replace with your measured pH.', '0.00'],
     ['Current free SO₂', so.input.currentFreePpm, 'mg/L', 'From titration or a test kit (0 for a fresh ferment)', '0'],
     ['Current total SO₂', so.input.currentTotalPpm, 'mg/L', '', '0'],
     ['Target molecular SO₂', so.input.targetMolecularPpm, 'mg/L', '0.8 typical for light meads; 0.5 for tannic or red meads', '0.00'],
     ['Expected binding of addition', so.input.bindingPct / 100, '%', 'First addition after fermentation often loses 25–50 %', '0%'],
     ['SO₂ fraction of product', SULFITE_FORMS[so.input.form].so2Fraction, '', `${SULFITE_FORMS[so.input.form].label}: K-meta 0.576, Na-meta 0.674`, '0.000'],
-    ['pKa1 of SO₂', SO2_PKA1, '', 'Aqueous value at 20 °C (conservative in alcohol)', '0.00'],
+    ['pKa1 of SO₂', so.pKa, '', `OIV value for ${so.input.abv.toFixed(1)} % ABV at 20 °C`, '0.00'],
   ];
   inputs.forEach(([k, v, u, note, fmt], i) => {
     const rw = w.getRow(5 + i);

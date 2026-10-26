@@ -10,6 +10,21 @@ import {
   SORBIC_FRACTION_OF_KSORBATE, SORBIC_LIMIT_US,
 } from './constants';
 
+/**
+ * SPEC §13.1 — apparent pKa1 of SO₂ by alcohol content at 20 °C: OIV-MA-AS323-04C Table II
+ * (mixed constant, ionic strength 0.038; after Usseglio-Tomasset & Bosia 1984). Linear interpolation.
+ * 20 °C is the standard measurement temperature the 0.5–0.8 mg/L molecular targets refer to.
+ */
+const OIV_PKM_20C: [number, number][] = [[0, 1.723], [5, 1.819], [10, 1.916], [15, 2.014], [20, 2.114]];
+export function so2Pka(abvPct: number): number {
+  const a = Math.max(0, Math.min(20, abvPct));
+  for (let i = 1; i < OIV_PKM_20C.length; i++) {
+    const [x0, y0] = OIV_PKM_20C[i - 1], [x1, y1] = OIV_PKM_20C[i];
+    if (a <= x1) return y0 + ((a - x0) / (x1 - x0)) * (y1 - y0);
+  }
+  return OIV_PKM_20C[OIV_PKM_20C.length - 1][1];
+}
+
 export type SulfiteForm = 'kmeta' | 'nameta' | 'campden';
 export const SULFITE_FORMS: Record<SulfiteForm, { label: string; so2Fraction: number }> = {
   kmeta: { label: 'Potassium metabisulfite (K-meta)', so2Fraction: KMETA_SO2_FRACTION },
@@ -35,10 +50,13 @@ export interface SulfiteInput {
   bindingPct: number;
   form: SulfiteForm;
   sorbate: boolean;
+  /** ABV of the mead being treated — sets the SO₂ pKa (OIV). */
+  abv: number;
 }
 
 export interface SulfitePlan {
   input: SulfiteInput;
+  pKa: number;
   molecularFraction: number;
   currentMolecularPpm: number;
   requiredFreePpm: number;
@@ -55,9 +73,10 @@ export interface SulfitePlan {
 /** SPEC §13.2 */
 export function sulfitePlan(x: SulfiteInput): SulfitePlan {
   const V = Math.max(0, x.volumeL);
-  const f = molecularFraction(x.pH);
+  const pKa = so2Pka(x.abv);
+  const f = molecularFraction(x.pH, pKa);
   const binding = Math.min(0.9, Math.max(0, x.bindingPct / 100));
-  const requiredFreePpm = freeForMolecular(x.targetMolecularPpm, x.pH);
+  const requiredFreePpm = freeForMolecular(x.targetMolecularPpm, x.pH, pKa);
   const deficit = Math.max(0, requiredFreePpm - Math.max(0, x.currentFreePpm));
   const additionPpm = deficit / (1 - binding);
   const so2Grams = (additionPpm * V) / 1000;
@@ -87,10 +106,11 @@ export function sulfitePlan(x: SulfiteInput): SulfitePlan {
     w.push({ severity: 'info', text: 'Sorbate only stops renewed yeast growth; it does not kill yeast. Add it with adequate free SO₂ and after the mead is clear and stable. Without SO₂, lactic bacteria can turn sorbate into a geranium off-odour.', source: ['zoecklein', 'practice'] });
   if (totalPpm >= SO2_LABEL_THRESHOLD)
     w.push({ severity: 'info', text: `Total SO₂ ≥ ${SO2_LABEL_THRESHOLD} mg/L: commercial labels in the US must state "Contains sulfites".`, source: ['ttb-4-32'] });
-  w.push({ severity: 'info', text: 'pKa 1.81 is the aqueous value. At wine-level alcohol the effective pKa is higher, so real molecular SO₂ is somewhat above this estimate (a conservative error). Re-measure free SO₂ 24–48 h after each addition.', source: ['usseglio', 'margalit'] });
+  w.push({ severity: 'info', text: `pKa ${pKa.toFixed(2)} for ${x.abv.toFixed(1)} % ABV at 20 °C (OIV table; water alone would be 1.72). Alcohol raises the pKa, so a mead needs less free SO₂ than a plain-water calculation suggests. Re-measure free SO₂ 24–48 h after each addition.`, source: ['oiv-so2', 'usseglio'] });
 
   return {
     input: x,
+    pKa,
     molecularFraction: f,
     currentMolecularPpm: Math.max(0, x.currentFreePpm) * f,
     requiredFreePpm,
