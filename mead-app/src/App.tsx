@@ -262,7 +262,7 @@ export default function App() {
         <AbvCalculator />
       </Modal>
       <Modal open={modal === 'export'} onClose={() => setModal(null)} title="Export to Excel / Google Sheets">
-        {analysis && <ExportPanel a={analysis} />}
+        {analysis && <ExportPanel a={analysis} versionLabel={base ? `${base.name} v${base.version}${dirty ? ' + unsaved changes' : ''}` : undefined} />}
       </Modal>
       <Modal open={modal === 'sources'} onClose={() => setModal(null)} title="Sources & citations">
         <SourcesList />

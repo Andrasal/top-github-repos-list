@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import type { Analysis } from '../lib/recipe';
 import { copyText, saveFile } from './download';
 
-export function ExportPanel({ a }: { a: Analysis }) {
+export function ExportPanel({ a, versionLabel }: { a: Analysis; versionLabel?: string }) {
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
   const ta = useRef<HTMLTextAreaElement>(null);
@@ -13,10 +13,11 @@ export function ExportPanel({ a }: { a: Analysis }) {
     try {
       const { buildWorkbook, fileName, ensureExcel } = await import('../lib/export');
       await ensureExcel();
-      const buf = await buildWorkbook(a).xlsx.writeBuffer();
+      const buf = await buildWorkbook(a, { versionLabel }).xlsx.writeBuffer();
       const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const res = await saveFile(fileName(a), blob);
-      setStatus(res === 'saved' ? `Saved ${fileName(a)}` : res === 'declined' ? 'Save cancelled.' : 'This view cannot save files. Use “Copy for Google Sheets” instead.');
+      const name = fileName(a, versionLabel);
+      const res = await saveFile(name, blob);
+      setStatus(res === 'saved' ? `Saved ${name}` : res === 'declined' ? 'Save cancelled.' : 'This view cannot save files. Use “Copy for Google Sheets” instead.');
     } catch (e) {
       setStatus(`Export failed: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
@@ -26,7 +27,7 @@ export function ExportPanel({ a }: { a: Analysis }) {
 
   async function sheets() {
     const { toTsv } = await import('../lib/export');
-    const ok = await copyText(toTsv(a), ta.current);
+    const ok = await copyText(toTsv(a, versionLabel), ta.current);
     setStatus(ok ? 'Copied. In Google Sheets, click cell A1 and paste.' : 'Copy was blocked. Select the text below and copy it manually.');
   }
 
@@ -36,12 +37,14 @@ export function ExportPanel({ a }: { a: Analysis }) {
         <button className="btn-primary w-full justify-center py-2" onClick={excel} disabled={busy}>
           Download Excel workbook (.xlsx)
         </button>
+        <ul className="list-disc space-y-1 pl-5 text-stone-600 dark:text-stone-300">
+          <li><b>Read me</b> first, with a link to every sheet: Summary, Ingredients, Nutrients, Acidity, Sulfite, Advisor{a.recipe.log?.readings?.length ? ', Log' : ''} and Sources.</li>
+          <li><b>Yellow cells are inputs.</b> Type your measured OG/FG and ABV, sweetness and strength follow. Change honey or spice amounts and the sugar and dose bands update.</li>
+          <li><b>Dropdowns</b> for yeast nitrogen demand, nutrient protocol, SO₂ product and back-sweetening, with live doses and legal checks.</li>
+          <li>Checked by recalculating every formula in a real spreadsheet engine: the results match the app exactly.</li>
+        </ul>
         <p className="text-stone-600 dark:text-stone-300">
-          Six sheets: Summary, Ingredients, Nutrients, Sulfite, Advisor and Sources. ABV, sulfite, YAN and totals are <b>live formulas</b>, and the yellow cells are
-          inputs. Change your measured FG or pH and the sheet recalculates.
-        </p>
-        <p className="text-stone-600 dark:text-stone-300">
-          <b>Google Sheets:</b> upload the .xlsx to Drive and open it with Google Sheets. The formulas carry over.
+          <b>Google Sheets:</b> upload the .xlsx to Google Drive and open it with Google Sheets. Formulas, dropdowns and colours carry over.
         </p>
       </div>
       <div className="space-y-2 border-t border-stone-200 pt-4 dark:border-stone-800">

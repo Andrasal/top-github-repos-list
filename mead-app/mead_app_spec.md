@@ -681,3 +681,67 @@ ferments probably made more acetic acid. Nutrient salts (DAP) are not modelled.
   Water: RO 3.39 · average tap 3.50 · hard 3.65 (finished, honey only).
 * SO₂ free needed for 0.8 mg/L molecular, v1 (pKa 1.81) vs v2 (12 % ABV, pKa 1.955):
   pH 3.3: 26 → 18 · pH 3.5: 40 → 29 · pH 3.6: 50 → 36 · pH 3.8: 79 → 57 mg/L.
+
+
+## 14.2 Export audit & rebuild (2026-10-26)
+**Findings in v1:** unnamed columns (botanicals table, Nutrients inputs, pairings, profile); "Fermentables"
+sheet that also held spices; predicted OG labelled "measured"; pH stored as text; raw licence ids; no
+pH sheet, batch size, water or saved version; sweetness, strength and RS frozen while ABV was live;
+spice g/L divided by a hard-coded volume; static dose bands; nutrient doses not linked to YAN or volume;
+SO₂ pKa not linked to ABV; product as a raw number; no place for measured OG/FG.
+
+**Rebuild:**
+* Sheets: **Read me** (hyperlinked index, key) · Summary · Ingredients · Nutrients · **Acidity** (new) ·
+  Sulfite · Advisor · Log (when a batch has readings) · Sources (human licence labels, links).
+* Every table has a header; blank spacer columns are unstyled; units in a column or the label.
+* **Live formulas:** measured OG/FG inputs → OG/FG used → ABV, ABW, sweetness, RS, strength, ⅓ and ½
+  breaks. Mass → sugar (kg) via a stored sugar fraction. Dose volume → g/L and kg/L → **dose band**
+  (nested IF on subtle/typical/bold/max). Brix from the **primary** OG → YAN (demand **dropdown**
+  → factor) → nutrient doses per **protocol dropdown** (TOSNA 3.0 / K + DAP / Hybrid), YAN delivered,
+  totals, DAP legal check. Yeast, Go-Ferm and water from volume and OG. SO₂: ABV (linked to Summary)
+  → OIV pKa (piecewise-linear formula) → product **dropdown** → fraction → molecular share → free
+  needed → addition → grams, Campden, stock solution → after-values → legal check, plus a
+  free-SO₂-by-pH table. Sorbate behind a Yes/No dropdown. Log ABV and % sugar used per reading.
+* Data validation (ranges and lists), cell notes on headers, conditional colours (bands, legal checks),
+  frozen headers, print setup (fit to width).
+* Values from heavier models (mass balance, pH model, profile) are labelled "from the app".
+
+**Verification (now permanent tests, `export.recalc.test.ts`):**
+1. All cached results are zeroed and the workbook is recalculated by LibreOffice headless. Every
+   formula cell must equal the app within 1e-6 relative. 1,097 cells across 13 recipes, then 3
+   recipes in CI. This audit found and fixed:
+   - stored inputs rounded to 2–3 dp (ABV drift 6.30 vs 6.33);
+   - Brix rounded inside the YAN formula;
+   - nutrients based on the *effective* OG, which includes secondary-fruit juice not yet in the must
+     (they now use the primary OG, as the app does);
+   - SO₂ fractions written to 4 dp.
+2. Inputs are edited in the sheet (measured FG, protocol, demand, SO₂ product, pH, botanical grams),
+   recalculated, and compared with the app's own analysis of the same change: exact.
+
+## 23. Recipe Library (library.ts, store.ts)
+* **Immutable versions.** `LibraryEntry {id, lineageId, parentId, version, name, author: you|ai, note,
+  createdAt, recipe}`. Saving never overwrites: `deriveEntry` appends version max+1 in the lineage and
+  deep-copies the recipe. Tests assert the parent is byte-identical afterwards.
+* **Draft = a copy.** The editor holds a draft plus `baseId` (the version it was copied from) and a
+  `dirty` flag. Opening any version loads a deep copy. "Save as vN" derives a new version; "Save as
+  new recipe" starts a new lineage. Opening another recipe with unsaved changes asks: save first,
+  discard, or cancel.
+* **Storage.** Inside Claude: the artifact `db` capability under the viewer's private subtree
+  `data/users/<id>/meadlab/library/recipes/<entryId>` (synced across devices, invisible to others; needs
+  the `user` capability for the id). Elsewhere: localStorage, labelled "this browser only".
+
+## 24. AI Recipe Assistant (chat.ts, ChatPanel)
+* Uses the artifact **`sample`** capability (the viewer's own Claude usage; consent on first use),
+  `modelTier: "default"`, with **page tools**:
+  `list_recipes`, `get_recipe(id|"draft")`, `analyze_recipe(base_id|"draft"|"new", changes)` (dry run),
+  `create_recipe(recipe, note)` (new lineage, v1), `edit_recipe(base_id, changes, note)` (**saves a copy
+  as the next version; the base is never modified**).
+* **Spec format for the AI (`RecipeSpec`):** compact, metric, catalog ids only. `applySpec` validates
+  every id and number and throws readable errors listing valid ids, which the model sees and corrects.
+* **Instructions** (a leading user turn, under 16 KB): rules (never overwrite, check with
+  analyze_recipe, fix error flags, keep doses typical–bold, metric in tools, user's units in replies,
+  brief phone-friendly answers, quote the tools' ABV), the open draft's spec and numbers, and the full
+  catalog with dose bands.
+* UI: streaming replies, Stop, live tool status, "saved vN" cards with Open, suggestion chips, error
+  copy per error code. Fatal codes hide the feature; tools-unavailable falls back to text-only. Outside
+  Claude the panel explains that the assistant runs inside Claude.

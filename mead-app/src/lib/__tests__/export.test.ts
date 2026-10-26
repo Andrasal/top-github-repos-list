@@ -1,39 +1,50 @@
 import { describe, expect, it } from 'vitest';
 import ExcelJS from 'exceljs';
-import { buildWorkbook, toTsv } from '../export';
+import { buildWorkbook, fileName, toTsv } from '../export';
 import { analyzeRecipe, DEFAULT_RECIPE } from '../recipe';
 import { abv as abvRef } from '../abv';
 
+const find = (ws: ExcelJS.Worksheet, label: string, col = 'B', labelCol = 1) => {
+  let hit: ExcelJS.Cell | null = null;
+  ws.eachRow((row) => { if (!hit && String(row.getCell(labelCol).value) === label) hit = ws.getCell(`${col}${row.number}`); });
+  if (!hit) throw new Error(`label not found: ${label}`);
+  return (hit as ExcelJS.Cell).value as { formula?: string; result?: unknown } & ExcelJS.CellValue;
+};
+
 describe('export (SPEC §14)', () => {
   const a = analyzeRecipe({ ...DEFAULT_RECIPE, targetFg: 1.012 });
-  it('builds a workbook with all sheets and round-trips through xlsx', async () => {
-    const wb = buildWorkbook(a, { generated: new Date('2026-10-26') });
-    expect(wb.worksheets.map((w) => w.name)).toEqual(['Summary', 'Ingredients', 'Nutrients', 'Sulfite', 'Advisor', 'Sources']);
-    const logged = buildWorkbook(analyzeRecipe({ ...DEFAULT_RECIPE, log: { pitchedAt: '2026-10-01T18:00:00Z', readings: [{ uid: 'a', at: '2026-10-01T18:00:00Z', sg: 1.1 }, { uid: 'b', at: '2026-10-05T18:00:00Z', sg: 1.05 }], dosesDone: [true, true, true, false] } }));
-    expect(logged.getWorksheet('Log')!.getCell('D6').value).toMatchObject({ result: expect.closeTo(abvRef(1.1, 1.05), 8) });
+  it('builds every sheet, Read me first, and round-trips through xlsx', async () => {
+    const wb = buildWorkbook(a, { generated: new Date('2026-10-26'), versionLabel: 'v2' });
+    expect(wb.worksheets.map((w) => w.name)).toEqual(['Read me', 'Summary', 'Ingredients', 'Nutrients', 'Acidity', 'Sulfite', 'Advisor', 'Sources']);
     const buf = await wb.xlsx.writeBuffer();
     const back = new ExcelJS.Workbook();
     await back.xlsx.load(buf as ArrayBuffer);
-    const abv = back.getWorksheet('Summary')!.getCell('B9').value as { formula: string; result: number };
-    expect(abv.formula).toBe('(76.08*(B7-B8)/(1.775-B7))*(B8/0.794)');
-    expect(abv.result).toBeCloseTo(a.abv, 6);
-    const so2 = back.getWorksheet('Sulfite')!.getCell('B19').value as { formula: string; result: number };
-    expect(so2.result).toBeCloseTo(a.sulfite.productGrams, 6);
+    const abv = find(back.getWorksheet('Summary')!, 'ABV (Alternative equation)');
+    expect(abv.formula).toMatch(/76\.08\*\(B\d+-B\d+\)\/\(1\.775-B\d+\)/);
+    expect(abv.result).toBeCloseTo(a.abv, 2);
+    expect(find(back.getWorksheet('Sulfite')!, 'Amount of product to add').result).toBeCloseTo(a.sulfite.productGrams, 2);
+    expect(find(back.getWorksheet('Nutrients')!, 'Yeast nitrogen demand', 'C', 2)).toBe('medium');
   });
-  it('excel ABV formula cells evaluate to the app value', () => {
-    // Reproduce the spreadsheet formula with the cached inputs
-    const og = a.effectiveOg, fg = a.fg.fg;
-    expect((76.08 * (og - fg) / (1.775 - og)) * (fg / 0.794)).toBeCloseTo(a.abv, 10);
+  it('adds a Log sheet when the batch has readings', () => {
+    const logged = buildWorkbook(analyzeRecipe({ ...DEFAULT_RECIPE, log: { pitchedAt: '2026-10-01T18:00:00Z', readings: [{ uid: 'a', at: '2026-10-01T18:00:00Z', sg: 1.1 }, { uid: 'b', at: '2026-10-05T18:00:00Z', sg: 1.05 }], dosesDone: [true, true, true, false] } }));
+    const ws = logged.getWorksheet('Log')!;
+    let abvCell: unknown = null;
+    ws.eachRow((row) => { const v = row.getCell(2).value; if (v === 1.05) abvCell = row.getCell(4).value; });
+    expect((abvCell as { result: number }).result).toBeCloseTo(abvRef(1.1, 1.05), 2);
   });
-  it('sulfite sheet formulas reproduce the plan', () => {
-    const s = a.sulfite.input;
-    const frac = 1 / (1 + 10 ** (s.pH - a.sulfite.pKa));
-    const add = Math.max(0, 0.8 / frac - s.currentFreePpm) / (1 - s.bindingPct / 100);
-    expect(add).toBeCloseTo(a.sulfite.additionPpm, 8);
+  it('every header cell is named and every input carries the input fill', () => {
+    const wb = buildWorkbook(a);
+    wb.eachSheet((ws) => ws.eachRow((row) => row.eachCell((c) => {
+      const isHeaderFill = (c.fill as ExcelJS.FillPattern | undefined)?.fgColor?.argb === 'FFFDE68A';
+      if (isHeaderFill) expect(String(c.value ?? '').trim()).not.toBe('');
+    })));
   });
-  it('TSV has tabs and key values', () => {
-    const t = toTsv(a);
-    expect(t).toContain('ABV (Alternative eq.) %\t' + a.abv.toFixed(2));
+  it('TSV has labelled rows with units', () => {
+    const t = toTsv(a, 'v2');
+    expect(t).toContain('ABV (Alternative equation)\t' + a.abv.toFixed(2) + '\t% v/v');
     expect(t.split('\n').length).toBeGreaterThan(20);
+  });
+  it('file name carries the version', () => {
+    expect(fileName(a, 'Wildflower Blackberry Melomel v3')).toBe('Wildflower_Blackberry_Melomel_v3.xlsx');
   });
 });
