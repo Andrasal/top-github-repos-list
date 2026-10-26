@@ -1,7 +1,8 @@
 /**
  * Library persistence — SPEC §23.2.
  * Inside Claude: the artifact `db` capability, under the viewer's PRIVATE subtree
- * (data/users/<id>/meadlab/library/recipes/<entryId>) — synced across devices, invisible to others.
+ * (collection data/users/<id> → document `meadlab` → collection `recipes` → document <entryId>).
+ * Paths alternate collection/document, so the per-user document is 4 segments and `recipes` is 5.
  * Elsewhere (local dev, signed out): browser localStorage, clearly labelled as this-browser-only.
  */
 import type { LibraryEntry } from './library';
@@ -51,16 +52,19 @@ type Coll = {
 };
 type Db = { doc(path: string): { collection(p: string): Coll } };
 type UserNs = { id(): Promise<string | null> };
-type ClaudeRt = { use(name: string): Promise<unknown> };
+export type ClaudeRt = { use(name: string): Promise<unknown> };
 
-export async function openStore(): Promise<LibraryStore> {
-  const rt = (globalThis as unknown as { claude?: ClaudeRt }).claude;
+/** Path of the per-user recipes collection (odd segment count = collection). */
+export const libraryCollectionPath = (uid: string) => `data/users/${uid}/meadlab/recipes`;
+
+export async function openStore(rtOverride?: ClaudeRt): Promise<LibraryStore> {
+  const rt = rtOverride ?? (globalThis as unknown as { claude?: ClaudeRt }).claude;
   if (!rt?.use) return localStore();
   try {
     const [db, user] = (await Promise.all([rt.use('db'), rt.use('user')])) as [Db | null, UserNs | null];
     const uid = db && user ? await user.id() : null;
     if (!db || !uid) return localStore();
-    const coll = db.doc(`data/users/${uid}/meadlab/library`).collection('recipes');
+    const coll = db.doc(`data/users/${uid}/meadlab`).collection('recipes');
     return {
       kind: 'cloud',
       subscribe(cb, onError) {

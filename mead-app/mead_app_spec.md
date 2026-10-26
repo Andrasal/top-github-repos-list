@@ -727,8 +727,10 @@ SO₂ pKa not linked to ABV; product as a raw number; no place for measured OG/F
   new recipe" starts a new lineage. Opening another recipe with unsaved changes asks: save first,
   discard, or cancel.
 * **Storage.** Inside Claude: the artifact `db` capability under the viewer's private subtree
-  `data/users/<id>/meadlab/library/recipes/<entryId>` (synced across devices, invisible to others; needs
-  the `user` capability for the id). Elsewhere: localStorage, labelled "this browser only".
+  `data/users/<id>/meadlab/recipes/<entryId>` (collection `data/users/<id>` → document `meadlab` →
+  collection `recipes`; synced across devices, invisible to others; needs the `user` capability for the id).
+  A unit test runs the store against a fake db that enforces the runtime's path parity; v1 used a
+  5-segment document path, which the post-publish read-back check caught. Elsewhere: localStorage, labelled "this browser only".
 
 ## 24. AI Recipe Assistant (chat.ts, ChatPanel)
 * Uses the artifact **`sample`** capability (the viewer's own Claude usage; consent on first use),

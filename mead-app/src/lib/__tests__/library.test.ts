@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { applySpec, createEntry, deriveEntry, LibraryEntry, lineages, toSpec } from '../library';
 import { analyzeRecipe, DEFAULT_RECIPE } from '../recipe';
 import { instructions, makeTools, ChatEvent } from '../chat';
-import { localStore } from '../store';
+import { localStore, openStore } from '../store';
 
 describe('immutable library (SPEC §23)', () => {
   it('deriving a version never touches the parent and numbers versions per lineage', () => {
@@ -43,6 +43,31 @@ describe('immutable library (SPEC §23)', () => {
     await s.put(createEntry(DEFAULT_RECIPE, { author: 'you' }));
     expect(seen).toHaveLength(1);
     expect(JSON.parse(mem.get('mead-lab:library:v1')!)).toHaveLength(1);
+  });
+});
+
+describe('cloud store path grammar (SPEC §23.2)', () => {
+  it('uses valid collection/document paths and writes through db', async () => {
+    // Fake db that enforces the real runtime's parity rules (doc = even segments, collection = odd)
+    const writes: string[] = [];
+    const segs = (p: string) => p.split('/').length;
+    const coll = (path: string) => {
+      if (segs(path) % 2 !== 1) throw new TypeError(`collection path needs odd segments: ${path}`);
+      return {
+        doc: (id: string) => ({ set: async () => void writes.push(`${path}/${id}`), delete: async () => {} }),
+        onSnapshot: (next: (s: { docs: never[] }) => void) => { next({ docs: [] }); return () => {}; },
+      };
+    };
+    const db = { doc: (path: string) => { if (segs(path) % 2 !== 0) throw new TypeError(`doc path needs even segments: ${path}`); return { collection: (c: string) => coll(`${path}/${c}`) }; } };
+    const rt = { use: async (n: string) => (n === 'db' ? db : n === 'user' ? { id: async () => 'u_test' } : null) };
+    const store = await openStore(rt);
+    expect(store.kind).toBe('cloud');
+    await store.put(createEntry(DEFAULT_RECIPE, { author: 'you' }));
+    expect(writes[0]).toMatch(/^data\/users\/u_test\/meadlab\/recipes\/r-/);
+  });
+  it('falls back to local when there is no signed-in user', async () => {
+    const store = await openStore({ use: async () => null });
+    expect(store.kind).toBe('local');
   });
 });
 
