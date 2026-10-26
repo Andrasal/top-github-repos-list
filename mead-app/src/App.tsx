@@ -17,6 +17,7 @@ import { PresetPicker } from './components/PresetPicker';
 import { TrackerPanel } from './components/TrackerPanel';
 import { AcidityPanel } from './components/AcidityPanel';
 import { Modal } from './components/ui';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { uid, unitHelpers } from './components/units';
 
 const STORE = 'mead-lab:v1';
@@ -147,16 +148,28 @@ export default function App() {
         <div className="flex min-w-0 flex-col gap-4">
           {analysis && tracker && (
             <>
+              <ErrorBoundary label="Results" resetKey={analysis}>
               <ResultsPanel a={analysis} uh={uh} onProof={() => setModal('proof')} />
+              </ErrorBoundary>
+              <ErrorBoundary label="Mead Maker's Brain" resetKey={analysis}>
               <AdvisorPanel
                 a={analysis}
                 onAddSpice={(spiceId, gpl) => set({ spices: [...recipe.spices, { uid: uid(), spiceId, grams: Number((gpl * V).toFixed(2)) }] })}
                 onAddFruit={(fruitId) => set({ fruits: [...recipe.fruits, { uid: uid(), fruitId, massKg: Number((0.2 * V).toFixed(2)), stage: 'secondary' }] })}
               />
+              </ErrorBoundary>
+              <ErrorBoundary label="Nutrition" resetKey={analysis}>
               <NutrientPanel a={analysis} />
+              </ErrorBoundary>
+              <ErrorBoundary label="Acidity & pH" resetKey={analysis}>
               <AcidityPanel r={recipe} set={set} a={analysis} />
+              </ErrorBoundary>
+              <ErrorBoundary label="Sulfite" resetKey={analysis}>
               <SulfitePanel r={recipe} set={set} a={analysis} uh={uh} />
+              </ErrorBoundary>
+              <ErrorBoundary label="Batch log" resetKey={analysis}>
               <TrackerPanel r={recipe} set={set} a={analysis} t={tracker} now={now} />
+              </ErrorBoundary>
             </>
           )}
         </div>

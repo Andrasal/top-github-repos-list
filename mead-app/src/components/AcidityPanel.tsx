@@ -82,7 +82,9 @@ export function AcidityPanel({ r, set, a }: { r: Recipe; set: (p: Partial<Recipe
             <thead className="text-left text-xs text-stone-500"><tr><th className="py-1">Fruit</th><th className="text-right">subtle</th><th className="text-right">typical</th><th className="text-right">bold</th><th className="text-right">max</th></tr></thead>
             <tbody>
               {a.fruitPhCurves.map((c) => {
-                const f = r.fruits.find((x) => x.uid === c.uid)!;
+                // The analysis can lag the live recipe by a render (useDeferredValue): read from its own recipe
+                const f = a.recipe.fruits.find((x) => x.uid === c.uid);
+                if (!f) return null;
                 const fr = fruitById(f.fruitId);
                 const band = doseBand(fr, f.massKg / a.whole.volumeL);
                 return (
