@@ -36,7 +36,7 @@ export function sweetness(fg: number): Sweetness {
 /** SPEC §6.2 — residual sugar estimate (g/L). */
 export const residualSugar = (fg: number, dryFg = DRY_FG_DEFAULT) => Math.max(0, (fg - dryFg) * 1000 * POINTS_TO_RS);
 
-/** SPEC §6.3 — BJCP 2015 */
+/** SPEC §6.3 — traditional mead strength terms, own thresholds (see §15) */
 export function strength(abvPct: number): Strength {
   if (abvPct < 3.5) return 'sub-hydromel';
   if (abvPct < 7.5) return 'hydromel';

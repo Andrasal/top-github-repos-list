@@ -8,6 +8,7 @@ import {
   Component, contributions, fruitComponent, honeyComponent, honeyExtractFromDensity, occupancy, solveForTargetVolume, solveForWater, sugarComponent,
 } from './must';
 import { nutrientSchedule, Protocol, rehydration, yanRequirement } from './nutrients';
+import { sulfitePlan, SulfiteForm } from './sulfite';
 
 export interface Recipe {
   name: string;
@@ -24,7 +25,26 @@ export interface Recipe {
   creditFruitYan: boolean;
   targetFg: number | null;
   dryFg: number;
+  sulfite: SulfiteSettings;
 }
+
+/** SPEC §13 — stabilisation inputs. Volume defaults to the expected recovered volume. */
+export interface SulfiteSettings {
+  pH: number;
+  currentFreePpm: number;
+  currentTotalPpm: number;
+  targetMolecularPpm: number;
+  bindingPct: number;
+  form: SulfiteForm;
+  volumeOverrideL: number | null;
+  /** null = automatic: add sorbate when back-sweetening (target FG set). */
+  sorbate: boolean | null;
+}
+
+export const DEFAULT_SULFITE: SulfiteSettings = {
+  pH: 3.6, currentFreePpm: 0, currentTotalPpm: 0, targetMolecularPpm: 0.8, bindingPct: 25,
+  form: 'kmeta', volumeOverrideL: null, sorbate: null,
+};
 
 export const DEFAULT_RECIPE: Recipe = {
   name: 'Wildflower Blackberry Melomel',
@@ -41,6 +61,7 @@ export const DEFAULT_RECIPE: Recipe = {
   creditFruitYan: false,
   targetFg: null,
   dryFg: DRY_FG_DEFAULT,
+  sulfite: DEFAULT_SULFITE,
 };
 
 function primaryComponents(r: Recipe): Component[] {
@@ -107,6 +128,16 @@ export function analyzeRecipe(r: Recipe) {
     spices: r.spices.filter((s) => s.grams > 0).map((s) => ({ spice: spiceById(s.spiceId), grams: s.grams })),
   });
 
+  const so = { ...DEFAULT_SULFITE, ...r.sulfite };
+  const sulfiteVolumeL = so.volumeOverrideL ?? occ.recoveredL + (whole.volumeL - primary.volumeL);
+  const sulfite = sulfitePlan({
+    volumeL: sulfiteVolumeL, pH: so.pH, currentFreePpm: so.currentFreePpm, currentTotalPpm: so.currentTotalPpm,
+    targetMolecularPpm: so.targetMolecularPpm, bindingPct: so.bindingPct, form: so.form, sorbate: so.sorbate ?? r.targetFg != null,
+  });
+  for (const w of sulfite.warnings.filter((x) => x.severity === 'error')) {
+    flavor.advisories.unshift({ id: `so2-${w.text.slice(0, 14)}`, severity: 'error', category: 'process', title: 'Sulfite limit', detail: w.text, source: w.source });
+  }
+
   if (primary.overVolume) {
     flavor.advisories.unshift({
       id: 'over-volume', severity: 'error', category: 'process', title: 'Ingredients exceed the target volume',
@@ -140,6 +171,7 @@ export function analyzeRecipe(r: Recipe) {
     rehydration: rehy,
     contributions: contrib,
     occupancy: occ,
+    sulfite,
     ...flavor,
   };
 }

@@ -257,8 +257,9 @@ conserved, so `ABV = ABV(effective OG, FG)`. Note: juice lighter than the must
 
 Residual sugar estimate: `RS ≈ max(0, FG − DRY_FG) × 1000 × 2.6 g/L`.
 
-### 6.3 Strength (BJCP 2015 Mead Guidelines)
-Hydromel 3.5–7.5 % · Standard 7.5–14 % · Sack 14–18 % (`bjcp-2015`).
+### 6.3 Strength (traditional mead terms, own thresholds)
+Hydromel 3.5–7.5 % · Standard 7.5–14 % · Sack 14–18 %. These are long-standing
+meadmaking terms. The app does **not** reproduce or claim BJCP guidelines (see §15).
 
 ### 6.4 Sugar breaks
 `1/3 break SG = OG − (OG − FG_pred)/3`; `1/2 break = OG − (OG − FG_pred)/2`.
@@ -457,3 +458,84 @@ writing; the UI lets the user override demand, because manufacturers revise them
 Volume (L ⇄ gal) and bulk mass (kg ⇄ lb) follow the toggle. **Spices and
 nutrients are always shown in grams** in both systems, as TOSNA and most
 meadmakers weigh them; dose bands show g/L and, in Imperial, g/gal too.
+
+
+---
+
+## 13. Sulfite Management (sulfite.ts)
+
+### 13.1 Equilibrium
+Free SO₂ = molecular SO₂ (antimicrobial) + bisulfite HSO₃⁻, in pH-dependent equilibrium:
+```
+molecular fraction = 1 / (1 + 10^(pH − pKa1)),   pKa1 = 1.81 (aqueous, 20 °C)
+molecular = free × fraction ;   free_needed = molecular_target ÷ fraction
+```
+Anchors (unit tested): pH 3.5 → 2.0 % molecular; pH 4.0 → 0.64 %; 0.8 mg/L at pH 3.5 → 40 mg/L free.
+Ethanol raises the effective pKa (`usseglio`), so true molecular SO₂ is a little **higher** than
+this estimate. The error is conservative, and the UI says so. (`margalit`, `zoecklein`)
+
+### 13.2 Addition
+| Quantity | Formula |
+|---|---|
+| SO₂ to add (mg/L) | `max(0, free_needed − free_current) / (1 − binding)` |
+| SO₂ mass (g) | `add × V / 1000` |
+| K-meta (g) | `SO₂ g / 0.5763` (2 × 64.066 / 222.32) |
+| Na-meta (g) | `SO₂ g / 0.6740` (2 × 64.066 / 190.1) |
+| Campden tablets | `K-meta g / 0.44` (typical US tablet: check brand) → 1 tab/gal ≈ 67 mg/L |
+| 10 % K-meta stock (mL) | `SO₂ g / (0.1 × 0.5763)` → 57.6 mg SO₂ per mL |
+| Free after | `free_current + add × (1 − binding)` |
+| Total after | `max(total_current, free_current) + add` |
+| Bound after | `total − free` |
+
+Defaults: target molecular 0.8 mg/L (0.5 for tannic meads), binding 25 %, pH 3.6, volume = expected
+recovered volume (§5.3) + secondary juice.
+
+**Sorbate** (auto-on when a target FG is set): 0.2 g/L potassium sorbate = 149 mg/L sorbic acid
+(MW 112.13 / 150.22). Never added without SO₂ (geranium off-odour risk).
+
+### 13.3 Limits & guard rails
+| Check | Value | Source |
+|---|---|---|
+| US total SO₂ | ≤ 350 mg/L → error | 27 CFR 4.22(b)(1) (`ttb-4-22`) |
+| EU mead total SO₂ | ≤ 200 mg/L → warning | Reg. 1333/2008 Annex II cat. 14.2.5 (`eu-1333`) |
+| US "Contains sulfites" label | total ≥ 10 mg/L → info | 27 CFR 4.32(e) (`ttb-4-32`) |
+| US sorbic acid | ≤ 300 mg/L → error | 27 CFR 24.246 |
+| pH > 3.8 | warning: acidify first | `margalit` |
+| Molecular > 1.5 mg/L | warning: perceptible | `margalit` |
+
+## 14. Export (export.ts)
+* **Excel (.xlsx)** via ExcelJS (MIT licence), lazy-loaded. Six sheets: Summary, Ingredients,
+  Nutrients, Sulfite, Advisor, Sources. Styled headers, input cells shaded yellow, number formats,
+  frozen header rows.
+* **Live formulas** with cached results: ABV/ABW (Summary B9/B10, which reference OG/FG input
+  cells), YAN target, nutrient totals, ingredient totals, kg→lb and L→gal conversions, and the entire
+  Sulfite sheet (a working calculator). `fullCalcOnLoad` is set so Excel recalculates on open.
+* **Verified:** a copy with every cached result zeroed was recalculated in LibreOffice and
+  reproduced the app's values exactly (ABV, K-meta grams, total SO₂, Fermaid O, YAN).
+* **Google Sheets:** upload the .xlsx to Drive (formulas carry over), or use *Copy for Google
+  Sheets*, a tab-separated values summary that pastes directly.
+* In the claude.ai artifact the file is offered through the `downloads` capability (viewer
+  confirms the save). Locally it is an ordinary browser download.
+
+## 15. Source Licensing Audit (done 2026-10-26)
+
+**Principle.** Formulas, methods, procedures and numeric facts are not protected by copyright
+(17 U.S.C. §102(b); *Feist v. Rural*, 499 U.S. 340 (1991)). Expression (prose, tables, code, page
+layouts) is. The app therefore re-implements logic from first principles, credits the origin,
+and never copies third-party text, tables or code. Each source carries a `license` and `usage`
+field in `sources.ts`, shown in the Sources drawer and the export's Sources sheet.
+
+| Source | Finding | Handling |
+|---|---|---|
+| USDA FoodData Central | Public domain, CC0 1.0; attribution requested | Credited; fruit rows are our own rounded estimates |
+| eCFR (27 CFR 4.22, 4.32, 24.246) | US government work, public domain | Limits used directly |
+| EUR-Lex (Reg. 1333/2008) | Reuse permitted with acknowledgement (Decision 2011/833/EU) | Limit value used, acknowledged |
+| Hall 1995 / Brewer's Friend | Copyrighted publications; formula itself is a fact | Formula re-implemented and cited; no text or code copied |
+| Balling 1865 | Public domain (age) | Ratios used |
+| Lincoln eq., ASBC, CRC, NHB, White, Zoecklein, Margalit, Usseglio-Tomasset | Copyrighted works | Facts/constants only, cited |
+| Scott Labs handbook | Copyrighted; product names are Lallemand trademarks | Numeric facts only; trademark notice in app & export |
+| Schramm, Piatz | Copyrighted books | General guidance informs our own dose bands; no text |
+| **BJCP guidelines** | Terms: apps must obtain permission and show an in-app permission/copyright notice; reposting not allowed | **Logic only.** Strength/sweetness use traditional mead terms with our own thresholds; no BJCP text, numbering or claim of BJCP conformance; linked for further reading only |
+| **TOSNA** | Original site (tosna.org) no longer resolves; no license found | **Logic only.** Method implemented independently and attributed by name; no text or calculator code reproduced |
+| **Mead Made Right** | Terms could not be verified | **Logic only.** Uses the general industry relation Brix × 10 × demand factor |
+| ExcelJS (npm dependency) | MIT licence | Bundled under MIT |

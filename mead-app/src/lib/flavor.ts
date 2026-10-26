@@ -125,7 +125,7 @@ export function advise(x: FlavorInput): { advisories: Advisory[]; suggestions: S
 
   // §8.4 Body
   if (x.abv < 7.5 && x.fg <= 1.004) {
-    out.push({ id: 'body-thin', severity: 'warning', category: 'body', title: 'Session mead may finish thin', detail: `${fmt(x.abv, 1)} % ABV at FG ${x.fg.toFixed(3)} leaves little body or sweetness.`, suggestion: 'Stabilise at 1.006–1.010, use a lower-attenuating yeast, add 0.05–0.1 g/L tannin, carbonate, or use an aromatic varietal honey.', source: ['bjcp-2015', 'practice'] });
+    out.push({ id: 'body-thin', severity: 'warning', category: 'body', title: 'Session mead may finish thin', detail: `${fmt(x.abv, 1)} % ABV at FG ${x.fg.toFixed(3)} leaves little body or sweetness.`, suggestion: 'Stabilise at 1.006–1.010, use a lower-attenuating yeast, add 0.05–0.1 g/L tannin, carbonate, or use an aromatic varietal honey.', source: ['practice'] });
   }
   if (x.abv > 14 && x.fg <= 0.998) {
     out.push({ id: 'body-hot', severity: 'info', category: 'body', title: 'Strong and bone-dry', detail: 'High alcohol with no residual sugar reads hot.', suggestion: 'Age 6+ months or back-sweeten to 1.004–1.010 to integrate the alcohol.', source: ['practice'] });

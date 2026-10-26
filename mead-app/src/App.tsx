@@ -8,6 +8,8 @@ import { NutrientPanel } from './components/NutrientPanel';
 import { AdvisorPanel } from './components/AdvisorPanel';
 import { AbvCalculator, AbvProofView } from './components/AbvProof';
 import { SourcesList } from './components/SourcesList';
+import { SulfitePanel } from './components/SulfitePanel';
+import { ExportPanel } from './components/ExportPanel';
 import { Modal } from './components/ui';
 import { uid, unitHelpers } from './components/units';
 
@@ -30,7 +32,7 @@ export default function App() {
   const [initial] = useState(load);
   const [recipe, setRecipe] = useState<Recipe>(initial.recipe);
   const [units, setUnits] = useState<UnitSystem>(initial.units);
-  const [modal, setModal] = useState<null | 'proof' | 'sources' | 'calc'>(null);
+  const [modal, setModal] = useState<null | 'proof' | 'sources' | 'calc' | 'export'>(null);
   const [confirmReset, setConfirmReset] = useState(false);
 
   useEffect(() => {
@@ -69,6 +71,7 @@ export default function App() {
               </button>
             ))}
           </div>
+          <button className="btn-primary" onClick={() => setModal('export')} disabled={!analysis}>Export</button>
           <button className="btn-ghost" onClick={() => setModal('calc')}>ABV calc</button>
           <button className="btn-ghost" onClick={() => setModal('sources')}>Sources</button>
           {confirmReset ? (
@@ -101,6 +104,7 @@ export default function App() {
                 onAddFruit={(fruitId) => set({ fruits: [...recipe.fruits, { uid: uid(), fruitId, massKg: Number((0.2 * V).toFixed(2)), stage: 'secondary' }] })}
               />
               <NutrientPanel a={analysis} />
+              <SulfitePanel r={recipe} set={set} a={analysis} uh={uh} />
             </>
           )}
         </div>
@@ -115,6 +119,9 @@ export default function App() {
       </Modal>
       <Modal open={modal === 'calc'} onClose={() => setModal(null)} title="ABV calculator (measured readings)">
         <AbvCalculator />
+      </Modal>
+      <Modal open={modal === 'export'} onClose={() => setModal(null)} title="Export to Excel / Google Sheets">
+        {analysis && <ExportPanel a={analysis} />}
       </Modal>
       <Modal open={modal === 'sources'} onClose={() => setModal(null)} title="Sources & citations">
         <SourcesList />
