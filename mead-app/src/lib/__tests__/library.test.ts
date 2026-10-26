@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applySpec, createEntry, deriveEntry, LibraryEntry, lineages, toSpec } from '../library';
 import { analyzeRecipe, DEFAULT_RECIPE } from '../recipe';
-import { instructions, makeTools, ChatEvent } from '../chat';
+import { instructions, makeTools, ChatEvent, parseJsonAction } from '../chat';
 import { localStore, openStore } from '../store';
 
 describe('immutable library (SPEC §23)', () => {
@@ -120,5 +120,24 @@ describe('AI tools (SPEC §24)', () => {
     expect(text).toMatch(/never overwritten/);
     expect(text).toMatch(/elderflower/);
     expect(new TextEncoder().encode(text).length).toBeLessThan(16_000);
+  });
+});
+
+describe('JSON-mode fallback (SPEC §24.3)', () => {
+  it('normalises Claude\'s JSON action', () => {
+    expect(parseJsonAction({ reply: 'Hi', action: 'chat' })).toMatchObject({ action: 'none', reply: 'Hi' });
+    expect(parseJsonAction({ reply: 'x', action: 'edit', changes: { name: 'A' } })).toMatchObject({ action: 'edit', base_id: 'draft', changes: { name: 'A' } });
+    expect(() => parseJsonAction('nope')).toThrow(/JSON object/);
+  });
+  it('target_fg 0 clears the target; a value sets it', () => {
+    expect(applySpec({ ...DEFAULT_RECIPE, targetFg: 1.01 }, { target_fg: 0 }).targetFg).toBeNull();
+    expect(applySpec(DEFAULT_RECIPE, { target_fg: 1.012 }).targetFg).toBe(1.012);
+  });
+  it('tool schemas use only plain JSON Schema types (no union type arrays)', () => {
+    const tools = makeTools({ entries: () => [], draft: () => ({ recipe: DEFAULT_RECIPE, baseId: null }), save: async () => {}, emit: () => {} });
+    const unions: unknown[] = [];
+    JSON.stringify(tools.map((t) => t.inputSchema), (k, v) => { if (k === 'type' && Array.isArray(v)) unions.push(v); return v; });
+    expect(unions).toEqual([]);
+    for (const t of tools) expect(new TextEncoder().encode(JSON.stringify(t.inputSchema ?? {})).length).toBeLessThan(4096);
   });
 });

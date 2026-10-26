@@ -36,7 +36,7 @@ const SPEC_SCHEMA = {
     fruits: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, kg: { type: 'number' }, stage: { type: 'string', enum: ['primary', 'secondary'] } }, required: ['id', 'kg'] } },
     botanicals: { type: 'array', description: 'Spices, flowers, herbs, oak etc. in grams for the whole batch', items: { type: 'object', properties: { id: { type: 'string' }, g: { type: 'number' } }, required: ['id', 'g'] } },
     yeast_id: { type: 'string' },
-    target_fg: { type: ['number', 'null'], description: 'Stop/back-sweeten finish; null = ferment to the yeast limit or dry' },
+    target_fg: { type: 'number', description: 'Stop/back-sweeten finish gravity, e.g. 1.012. Use 0 to remove the target (ferment to the yeast limit or dry).' },
     nutrient_protocol: { type: 'string', enum: ['tosna3', 'kDap', 'oK'] },
     water_alkalinity: { type: 'number', description: 'mg/L as CaCO3: 0 RO, 50 spring, 100 tap, 250 hard' },
     additions: { type: 'array', description: 'Acid or buffer additions', items: { type: 'object', properties: { id: { type: 'string', enum: ['tartaric', 'malic', 'citric', 'lactic', 'kBicarb', 'kCarb', 'caCarb'] }, g: { type: 'number' }, stage: { type: 'string', enum: ['must', 'finished'] } }, required: ['id', 'g'] } },
@@ -127,6 +127,38 @@ export function makeTools(ctx: ToolContext): ChatTool[] {
 }
 
 /** Catalog of valid ids with the numbers the AI needs to dose sensibly (kept compact). */
+/** SPEC §24.3 — fallback when page tools can't run: Claude returns one JSON action that the page applies itself. */
+export interface JsonAction {
+  reply: string;
+  action: 'none' | 'create' | 'edit';
+  base_id?: string | null;
+  note?: string;
+  changes?: RecipeSpec;
+}
+
+export const JSON_MODE_RULES = [
+  '',
+  'TOOLS ARE NOT AVAILABLE IN THIS VIEW. Instead, answer with ONE JSON object and nothing else:',
+  '{"reply": "<your short answer to the user>", "action": "none" | "create" | "edit", "base_id": "<saved id or \"draft\">", "note": "<one sentence: what changed>", "changes": { ...recipe fields... }}',
+  '- action "none" for questions; "create" for a brand-new recipe (changes = the full recipe incl. name, volume_l, honeys); "edit" to save an edited copy of base_id (changes = only the fields to replace; arrays replace whole lists).',
+  '- Recipe fields: name, volume_l, honeys [{id,kg}], sugars [{id,kg}], fruits [{id,kg,stage}], botanicals [{id,g}], yeast_id, target_fg (0 = none), nutrient_protocol (tosna3|kDap|oK), water_alkalinity, additions [{id,g,stage}]. Metric, catalog ids only.',
+  '- The app computes OG, ABV and pH itself after saving, so do not quote numbers you have not seen. Say what you changed.',
+].join('\n');
+
+/** Validate a JSON-mode answer; returns a normalised action or throws a readable error. */
+export function parseJsonAction(v: unknown): JsonAction {
+  if (!v || typeof v !== 'object') throw new Error('Reply was not a JSON object');
+  const o = v as Record<string, unknown>;
+  const action = o.action === 'create' || o.action === 'edit' ? o.action : 'none';
+  return {
+    reply: typeof o.reply === 'string' ? o.reply : '',
+    action,
+    base_id: typeof o.base_id === 'string' ? o.base_id : 'draft',
+    note: typeof o.note === 'string' ? o.note : undefined,
+    changes: o.changes && typeof o.changes === 'object' ? (o.changes as RecipeSpec) : undefined,
+  };
+}
+
 export function catalog(): string {
   const h = HONEYS.map((x) => `${x.id} (${x.name}, intensity ${x.intensity}/3)`).join('; ');
   const f = FRUITS.map((x) => `${x.id} (${x.name}; typical ${x.typical} kg/L, max ${x.max}; juice pH ${x.ph})`).join('; ');

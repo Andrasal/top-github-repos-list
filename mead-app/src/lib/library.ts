@@ -128,7 +128,7 @@ export function applySpec(base: Recipe, spec: RecipeSpec): Recipe {
   if (spec.fruits) r.fruits = spec.fruits.map((f) => ({ uid: u('f'), fruitId: checkId('fruit', f.id), massKg: num(f.kg, `fruit ${f.id} kg`, 0, 2000), stage: f.stage === 'secondary' ? 'secondary' : 'primary' }));
   if (spec.botanicals) r.spices = spec.botanicals.map((s) => ({ uid: u('s'), spiceId: checkId('botanical', s.id), grams: num(s.g, `botanical ${s.id} g`, 0, 100000) }));
   if (spec.yeast_id != null) r.yeastId = checkId('yeast', spec.yeast_id);
-  if (spec.target_fg !== undefined) r.targetFg = spec.target_fg == null ? null : num(spec.target_fg, 'target_fg', 0.99, 1.1);
+  if (spec.target_fg !== undefined) r.targetFg = spec.target_fg == null || Number(spec.target_fg) === 0 ? null : num(spec.target_fg, 'target_fg', 0.99, 1.1);
   if (spec.nutrient_protocol != null) {
     if (!PROTOCOLS.has(spec.nutrient_protocol)) throw new Error('nutrient_protocol must be tosna3, kDap or oK');
     r.protocol = spec.nutrient_protocol;

@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Recipe } from '../lib/recipe';
 import type { LibraryEntry } from '../lib/library';
-import { ChatEvent, instructions, makeTools } from '../lib/chat';
+import { ChatEvent, instructions, JSON_MODE_RULES, makeTools, parseJsonAction } from '../lib/chat';
 import type { UnitSystem } from '../lib/units';
 import type { Library } from './useLibrary';
 
 type SampleFn = ((input: unknown, opts?: Record<string, unknown>) => Promise<{ text: string; truncated: boolean }>) & {
   limits(): Promise<{ tools?: { maxCount: number } }>;
+  json<T = unknown>(input: unknown, opts?: Record<string, unknown>): Promise<T>;
 };
 type SavedCard = { entryId: string; name: string; version: number; from: string | null; abv: number };
-interface Msg { id: string; role: 'user' | 'assistant'; text: string; saved?: SavedCard[]; note?: string }
+interface Msg { id: string; role: 'user' | 'assistant'; text: string; saved?: SavedCard[]; note?: string; failed?: { question: string; detail: string } }
 
 const STORE = 'mead-lab:chat:v1';
 const loadMsgs = (): Msg[] => { try { return JSON.parse(localStorage.getItem(STORE) ?? '[]'); } catch { return []; } };
@@ -26,6 +27,8 @@ const ERRORS: Record<string, string> = {
   empty_completion: 'No answer came back. Try asking more simply.',
 };
 const FATAL = new Set(['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed']);
+/** Failures of the TOOLS call that a simpler JSON-mode call may avoid (SPEC §24.3). */
+const FALLBACK = new Set(['invalid_request', 'transform_error', 'tools_unavailable', 'upstream_error', 'empty_completion', 'prompt_too_large']);
 
 const SUGGESTIONS = [
   'Design a 5-gallon cherry-vanilla dessert mead around 13 %',
@@ -44,6 +47,7 @@ export function ChatPanel({ lib, draft, baseId, units, onOpenEntry }: {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const [fatal, setFatal] = useState('');
+  const [jsonMode, setJsonMode] = useState(false);
   const ctl = useRef<AbortController | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   // Tools read the latest state at execution time
@@ -68,12 +72,14 @@ export function ChatPanel({ lib, draft, baseId, units, onOpenEntry }: {
 
   useEffect(() => { saveMsgs(msgs); endRef.current?.scrollIntoView({ block: 'end' }); }, [msgs]);
 
-  async function send(text: string) {
+  async function send(text: string, retry = false) {
     const q = text.trim();
     if (!q || !sample || busy) return;
     const userMsg: Msg = { id: mid(), role: 'user', text: q };
     const reply: Msg = { id: mid(), role: 'assistant', text: '', saved: [] };
-    const history = [...msgs, userMsg];
+    // A retry re-asks the same question without duplicating the user's bubble
+    const base = retry ? msgs.filter((m) => !(m.role === 'assistant' && m.failed?.question === q)) : msgs;
+    const history = retry && base[base.length - 1]?.text === q ? base : [...base, userMsg];
     setMsgs([...history, reply]);
     setInput('');
     setBusy(true);
@@ -96,29 +102,68 @@ export function ChatPanel({ lib, draft, baseId, units, onOpenEntry }: {
         }
       },
     });
-    const base = live.current.lib.entries.find((e) => e.id === live.current.baseId);
-    const rules = instructions(live.current.draft, base ? `${base.name} v${base.version}` : null, units)
-      + (toolsOk ? '' : '\n\nNOTE: recipe tools are unavailable in this view. Answer in text only and tell the user to copy the changes into the editor.');
-    const turns = [
-      { role: 'user', content: rules },
-      ...history.filter((m) => m.text.trim()).slice(-12).map((m) => ({ role: m.role, content: m.text })),
-    ];
-    if (turns[turns.length - 1].role !== 'user') turns.push({ role: 'user', content: q });
-    try {
-      const res = await sample(turns, {
-        signal: controller.signal,
-        modelTier: 'default',
-        ...(toolsOk ? { tools } : { cache: false }),
-        onText: ({ text: t }: { text: string }) => { setStatus(''); update({ text: t }); },
-      });
-      update({ text: res.text, note: res.truncated ? 'Cut short. Ask for less at a time.' : undefined });
-    } catch (e) {
-      const err = e as { code?: string; text?: string };
-      const code = err.code ?? 'upstream_error';
+    let streamed = '';
+    const fail = (code: string, message: string, keep = '') => {
       if (FATAL.has(code)) setFatal(ERRORS[code] ?? 'Claude isn’t available in this view.');
-      if (code === 'cancelled') update({ text: err.text ?? '', note: 'Stopped.' });
-      else if (code === 'refused') update({ text: '', note: ERRORS.refused });
-      else update({ text: err.text ?? '', note: ERRORS[code] ?? 'Something went wrong. Try again.' });
+      if (code === 'cancelled') { update({ text: keep, note: 'Stopped.' }); return; }
+      update({
+        text: code === 'refused' ? '' : keep,
+        note: ERRORS[code] ?? 'Claude couldn’t answer this time.',
+        failed: { question: q, detail: `${code}${message ? `: ${message}` : ''}` },
+      });
+    };
+
+    try {
+      const baseEntry = live.current.lib.entries.find((e) => e.id === live.current.baseId);
+      const rules = instructions(live.current.draft, baseEntry ? `${baseEntry.name} v${baseEntry.version}` : null, units);
+      const convo = history.filter((m) => m.text.trim()).slice(-12).map((m) => ({ role: m.role, content: m.text }));
+      if (convo[convo.length - 1]?.role !== 'user') convo.push({ role: 'user', content: q });
+
+      // 1) Tools mode: Claude reads, checks and saves recipes through page functions
+      if (toolsOk && !jsonMode) {
+        try {
+          const res = await sample([{ role: 'user', content: rules }, ...convo], {
+            signal: controller.signal,
+            modelTier: 'default',
+            tools,
+            onText: ({ text: t }: { text: string }) => { streamed = t; setStatus(''); update({ text: t }); },
+          });
+          update({ text: res.text, note: res.truncated ? 'Cut short. Ask for less at a time.' : undefined });
+          return;
+        } catch (e) {
+          const err = e as { code?: string; message?: string; text?: string };
+          const code = err.code ?? 'upstream_error';
+          // Fall back only when nothing visible happened yet (no text, no saves) and the cause isn't the user's
+          if (!FALLBACK.has(code) || streamed || saved.length) { fail(code, err.message ?? '', err.text ?? streamed); return; }
+          if (code !== 'upstream_error') setJsonMode(true); // tools can't run in this view; stay in JSON mode
+          setStatus('Retrying in simple mode…');
+        }
+      }
+
+      // 2) JSON mode: Claude returns one action; the page validates and saves it (SPEC §24.3)
+      const raw = await sample.json([{ role: 'user', content: rules + '\n' + JSON_MODE_RULES }, ...convo], {
+        signal: controller.signal, modelTier: 'default', cache: false,
+      });
+      const act = parseJsonAction(raw);
+      let summary = '';
+      if (act.action !== 'none' && act.changes) {
+        setStatus('Saving a new version…');
+        try {
+          const tool = tools.find((t) => t.name === (act.action === 'create' ? 'create_recipe' : 'edit_recipe'))!;
+          const out = (await tool.execute(act.action === 'create'
+            ? { note: act.note ?? 'Created by the assistant', recipe: act.changes }
+            : { base_id: act.base_id ?? 'draft', note: act.note ?? 'Edited by the assistant', changes: act.changes }, { signal: controller.signal })) as
+            { name: string; version: number; computed: { og: number; abv: number; fg: number; finished_ph: number; flags: string[] } };
+          const c = out.computed;
+          summary = `\n\nSaved ${out.name} v${out.version}: OG ${c.og.toFixed(3)} · FG ${c.fg.toFixed(3)} · ${c.abv.toFixed(1)} % ABV · pH ≈ ${c.finished_ph.toFixed(2)}${c.flags.length ? `\nCheck recipe: ${c.flags.join('; ')}` : ''}`;
+        } catch (e) {
+          summary = `\n\n(I couldn’t save that change: ${(e as Error).message})`;
+        }
+      }
+      update({ text: (act.reply || 'Done.') + summary, note: jsonMode || !toolsOk ? undefined : 'Answered in simple mode.' });
+    } catch (e) {
+      const err = e as { code?: string; message?: string; text?: string };
+      fail(err.code ?? 'upstream_error', err.message ?? String(e), streamed);
     } finally {
       setBusy(false);
       setStatus('');
@@ -168,6 +213,12 @@ export function ChatPanel({ lib, draft, baseId, units, onOpenEntry }: {
                 );
               })}
               {m.note && <div className="mt-1 text-xs text-stone-500">{m.note}</div>}
+              {m.failed && (
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                  {!busy && <button className="btn-ghost border border-stone-300 px-2 py-0.5 text-xs dark:border-stone-700" onClick={() => send(m.failed!.question, true)}>Try again</button>}
+                  <details className="text-stone-500"><summary className="cursor-pointer">Details</summary><code className="break-all">{m.failed.detail}</code></details>
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -184,7 +235,7 @@ export function ChatPanel({ lib, draft, baseId, units, onOpenEntry }: {
           : <button type="submit" className="btn-primary" disabled={!input.trim()}>Send</button>}
       </form>
       <div className="flex justify-between pt-1 text-[11px] text-stone-500">
-        <span>{toolsOk ? 'Uses your Claude usage. Replies with saves can take 30–90 s.' : 'Text answers only in this view.'}</span>
+        <span>{toolsOk && !jsonMode ? 'Uses your Claude usage. Replies with saves can take 30–90 s.' : 'Simple mode: Claude proposes a change and the app saves it.'}</span>
         {msgs.length > 0 && !busy && <button className="underline" onClick={() => setMsgs([])}>Clear chat</button>}
       </div>
     </div>

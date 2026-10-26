@@ -747,3 +747,20 @@ SO₂ pKa not linked to ABV; product as a raw number; no place for measured OG/F
 * UI: streaming replies, Stop, live tool status, "saved vN" cards with Open, suggestion chips, error
   copy per error code. Fatal codes hide the feature; tools-unavailable falls back to text-only. Outside
   Claude the panel explains that the assistant runs inside Claude.
+
+
+### 24.3 Resilience (added after "the chat just says something went wrong")
+The page's request was checked against every documented client-side rule of the `sample` interface
+(a strict mock: turn order, non-empty turns, option names, tool names/descriptions/schema sizes, no
+`cache` with tools) and conforms, so the failure came from the service: a refused tool schema or an
+outage. Changes:
+* Tool schemas use only plain JSON Schema (the `["number","null"]` union was removed; `target_fg: 0`
+  now means "no target"). A test forbids union types and enforces < 4 KB per schema.
+* **Fallback ("simple mode")**: when the tools call fails with invalid_request, transform_error,
+  tools_unavailable, upstream_error, empty_completion or prompt_too_large *before any text streamed or
+  anything was saved*, the chat makes ONE call to `sample.json` asking for
+  `{reply, action: none|create|edit, base_id, note, changes}`. The page validates it with `applySpec`
+  and saves it through the same create/edit code, so the original is still never modified. It then
+  appends the app-computed OG, FG, ABV, pH and flags. For non-transient codes the view stays in simple mode.
+* Failures show the real error code under "Details" and a **Try again** button, which re-asks
+  without duplicating the question. There are no automatic retry loops.
