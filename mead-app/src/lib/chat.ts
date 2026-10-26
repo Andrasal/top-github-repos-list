@@ -1,5 +1,5 @@
 /**
- * AI recipe assistant — SPEC §24. Built on the artifact `sample` capability with page tools.
+ * AI recipe assistant — SPEC §24. Tools run through Claude (artifact `sample` or own key) or any other connected AI (§25).
  * Every change the AI makes is saved as a NEW library entry; existing entries are never modified.
  */
 import { analyzeRecipe, DEFAULT_RECIPE, Recipe } from './recipe';
@@ -59,12 +59,14 @@ export function makeTools(ctx: ToolContext): ChatTool[] {
     {
       name: 'list_recipes',
       description: 'List the user\'s saved recipes (latest versions first) with id, version, ABV and a one-line note. Use to find a recipe the user refers to by name.',
-      execute() {
+      // Some providers (Gemini) reject tools whose parameters are an empty object
+      inputSchema: { type: 'object', properties: { limit: { type: 'number', description: 'How many recipes to return (default 40)' } } },
+      execute(input) {
         ctx.emit({ kind: 'status', text: 'Looking through your recipes…' });
         return ctx.entries()
           .slice()
           .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-          .slice(0, 40)
+          .slice(0, Math.max(1, Math.min(100, Number(input?.limit) || 40)))
           .map((e) => {
             const a = analyzeRecipe(e.recipe);
             return { id: e.id, name: e.name, version: e.version, by: e.author, saved: e.createdAt.slice(0, 10), note: e.note, abv: Number(a.abv.toFixed(1)), sweetness: a.sweetness };

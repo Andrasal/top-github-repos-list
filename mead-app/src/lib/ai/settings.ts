@@ -3,14 +3,19 @@
  * in requests sent straight to the provider's API. "Remember" keeps it in localStorage;
  * otherwise it lives in sessionStorage and is gone when the tab closes.
  */
-export type Provider = 'anthropic';
+import type { ProviderId } from './providers';
 export interface AiSettings {
-  provider: Provider;
+  provider: ProviderId;
+  /** Empty for providers that need no key (local Ollama). */
   apiKey: string;
+  /** API address for OpenAI-compatible providers. */
+  baseUrl?: string;
   remember: boolean;
   verifiedAt: string;
-  /** Model the key was verified against. */
+  /** Model in use. */
   model: string;
+  /** Chat models the key can use, for the model picker. */
+  models?: string[];
 }
 
 const KEY = 'mead-lab:ai:v1';
@@ -21,7 +26,7 @@ const read = (s: Storage | undefined): AiSettings | null => {
     const v = s?.getItem(KEY);
     if (!v) return null;
     const o = JSON.parse(v) as AiSettings;
-    return o && typeof o.apiKey === 'string' && o.apiKey ? o : null;
+    return o && typeof o.apiKey === 'string' && typeof o.model === 'string' && (o.apiKey || o.baseUrl) ? { ...o, provider: o.provider ?? 'anthropic' } : null;
   } catch { return null; }
 };
 const ls = (): Storage | undefined => { try { return window.localStorage; } catch { return undefined; } };
@@ -51,6 +56,7 @@ let memory: AiSettings | null = null;
 export const currentAi = (): AiSettings | null => loadAi() ?? memory;
 
 export function maskKey(k: string): string {
+  if (!k) return 'no key';
   return k.length <= 12 ? '••••' : `${k.slice(0, 7)}…${k.slice(-4)}`;
 }
 

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Recipe } from '../lib/recipe';
 import type { LibraryEntry } from '../lib/library';
-import { ChatEvent, instructions, JSON_MODE_RULES, makeTools, parseJsonAction } from '../lib/chat';
+import { ChatEvent, instructions, JSON_MODE_RULES, makeTools, parseJsonAction, type JsonAction } from '../lib/chat';
 import type { UnitSystem } from '../lib/units';
 import type { Library } from './useLibrary';
 import { makeClient, normaliseTurns, runChat, toAiError } from '../lib/ai/anthropic';
-import { AiConnect, useAiSettings } from './AiConnect';
+import { compatJson, runCompatChat } from '../lib/ai/openai-compat';
+import { AiConnect, providerName, useAiSettings } from './AiConnect';
 
 type SampleFn = ((input: unknown, opts?: Record<string, unknown>) => Promise<{ text: string; truncated: boolean }>) & {
   limits(): Promise<{ tools?: { maxCount: number } }>;
@@ -22,23 +23,23 @@ const mid = () => Math.random().toString(36).slice(2, 10);
 const ERRORS: Record<string, string> = {
   not_granted: 'Claude isn’t allowed for this page. You can allow it from the artifact’s permissions.',
   sampling_disabled: 'Claude isn’t available for this account.',
-  rate_limited: 'Too many requests right now. Wait a moment, then try again.',
+  rate_limited: 'Too many requests right now (free tiers have daily limits). Wait a moment, then try again.',
   session_expired: 'Your session expired. Sign in again to keep chatting.',
-  refused: 'Claude declined that request. Try rephrasing it.',
+  refused: 'The AI declined that request. Try rephrasing it.',
   prompt_too_large: 'The conversation got too long. Clear the chat and try again.',
   empty_completion: 'No answer came back. Try asking more simply.',
   // Own-key (Anthropic API) codes, SPEC §25
   bad_key: 'Your API key was rejected. Reconnect it in AI settings.',
-  no_access: 'Your API key isn’t allowed to use this model. Check it in the Anthropic Console.',
-  billing: 'Your Anthropic account is out of credits. Add credits in the Console, then try again.',
-  not_found: 'Your API key can’t use the assistant’s model.',
-  overloaded: 'Anthropic is busy right now. Try again in a minute.',
-  network: 'Couldn’t reach Anthropic. Check your connection and try again.',
+  no_access: 'Your API key isn’t allowed to use this model. Check it with your AI provider.',
+  billing: 'Your AI account is out of credits. Add credits with your provider, then try again.',
+  not_found: 'Your API key can’t use the selected model. Pick another in AI settings.',
+  overloaded: 'The AI service is busy right now. Try again in a minute.',
+  network: 'Couldn’t reach the AI service. Check your connection and try again.',
   truncated: 'A recipe change was cut off before it finished. Ask for a smaller change.',
   too_large: 'The conversation got too long. Clear the chat and try again.',
-  invalid_request: 'Anthropic rejected the request.',
+  invalid_request: 'The AI service rejected the request. Try another model in AI settings.',
 };
-const KEY_PROBLEMS = new Set(['bad_key', 'no_access', 'billing', 'not_found']);
+const KEY_PROBLEMS = new Set(['bad_key', 'no_access', 'billing', 'not_found', 'invalid_request', 'rate_limited']);
 const FATAL = new Set(['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed']);
 /** Failures of the TOOLS call that a simpler JSON-mode call may avoid (SPEC §24.3). */
 const FALLBACK = new Set(['invalid_request', 'transform_error', 'tools_unavailable', 'upstream_error', 'empty_completion', 'prompt_too_large']);
@@ -63,7 +64,8 @@ export function ChatPanel({ lib, draft, baseId, units, onOpenEntry }: {
   const [jsonMode, setJsonMode] = useState(false);
   const ai = useAiSettings();
   const [setup, setSetup] = useState(false);
-  const client = useMemo(() => (ai ? makeClient(ai.apiKey) : null), [ai?.apiKey]);
+  // Claude keys go through Anthropic's SDK; every other provider through the OpenAI-style API
+  const client = useMemo(() => (ai?.provider === 'anthropic' ? makeClient(ai.apiKey) : null), [ai?.provider, ai?.apiKey]);
   const fallbacksOk = useRef(true);
   const ctl = useRef<AbortController | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -91,7 +93,7 @@ export function ChatPanel({ lib, draft, baseId, units, onOpenEntry }: {
 
   async function send(text: string, retry = false) {
     const q = text.trim();
-    if (!q || (!client && !sample) || busy) return;
+    if (!q || (!ai && !sample) || busy) return;
     const userMsg: Msg = { id: mid(), role: 'user', text: q };
     const reply: Msg = { id: mid(), role: 'assistant', text: '', saved: [] };
     // A retry re-asks the same question without duplicating the user's bubble
@@ -120,12 +122,28 @@ export function ChatPanel({ lib, draft, baseId, units, onOpenEntry }: {
       },
     });
     let streamed = '';
+    /** JSON mode: validate one proposed action and save it as a new version (SPEC §24.3). */
+    const applyAction = async (act: JsonAction): Promise<string> => {
+      if (act.action === 'none' || !act.changes) return '';
+      setStatus('Saving a new version…');
+      try {
+        const tool = tools.find((t) => t.name === (act.action === 'create' ? 'create_recipe' : 'edit_recipe'))!;
+        const out = (await tool.execute(act.action === 'create'
+          ? { note: act.note ?? 'Created by the assistant', recipe: act.changes }
+          : { base_id: act.base_id ?? 'draft', note: act.note ?? 'Edited by the assistant', changes: act.changes }, { signal: controller.signal })) as
+          { name: string; version: number; computed: { og: number; abv: number; fg: number; finished_ph: number; flags: string[] } };
+        const c = out.computed;
+        return `\n\nSaved ${out.name} v${out.version}: OG ${c.og.toFixed(3)} · FG ${c.fg.toFixed(3)} · ${c.abv.toFixed(1)} % ABV · pH ≈ ${c.finished_ph.toFixed(2)}${c.flags.length ? `\nCheck recipe: ${c.flags.join('; ')}` : ''}`;
+      } catch (e) {
+        return `\n\n(I couldn’t save that change: ${(e as Error).message})`;
+      }
+    };
     const fail = (code: string, message: string, keep = '') => {
       if (FATAL.has(code)) setFatal(ERRORS[code] ?? 'Claude isn’t available in this view.');
       if (code === 'cancelled') { update({ text: keep, note: 'Stopped.' }); return; }
       update({
         text: code === 'refused' ? '' : keep,
-        note: ERRORS[code] ?? 'Claude couldn’t answer this time.',
+        note: ERRORS[code] ?? 'The AI couldn’t answer this time.',
         failed: { question: q, detail: `${code}${message ? `: ${message}` : ''}` },
       });
     };
@@ -136,7 +154,33 @@ export function ChatPanel({ lib, draft, baseId, units, onOpenEntry }: {
       const convo = history.filter((m) => m.text.trim()).slice(-12).map((m) => ({ role: m.role, content: m.text }));
       if (convo[convo.length - 1]?.role !== 'user') convo.push({ role: 'user', content: q });
 
-      // 0) Own key: the subscriber's Anthropic account, called straight from this browser (SPEC §25)
+      // 0) Own key, other providers: OpenAI-style API with tools; JSON mode if the model has no tools (SPEC §25.5)
+      if (ai && !client) {
+        const cfg = { baseUrl: ai.baseUrl ?? '', apiKey: ai.apiKey, model: ai.model };
+        const turns = normaliseTurns(convo);
+        try {
+          const res = await runCompatChat({
+            cfg, system: rules, turns, tools, signal: controller.signal,
+            onText: (t) => { streamed = t; setStatus(''); update({ text: t }); },
+            onStatus: setStatus,
+          });
+          update({ text: res.text || (saved.length ? 'Saved.' : ''), note: res.truncated ? 'Cut short. Ask for less at a time.' : undefined });
+        } catch (e) {
+          const x = toAiError(e, streamed);
+          if (x.code !== 'no_tools' || saved.length) { fail(x.code, x.message, x.text); return; }
+          setStatus('Retrying in simple mode…');
+          try {
+            const act = await compatJson({ cfg, system: rules, turns, signal: controller.signal });
+            update({ text: (act.reply || 'Done.') + (await applyAction(act)), note: `${ai.model} can’t use tools, so it answered in simple mode.` });
+          } catch (e2) {
+            const y = toAiError(e2);
+            fail(y.code, y.message, '');
+          }
+        }
+        return;
+      }
+
+      // 0) Own key, Claude: the subscriber's Anthropic account, called straight from this browser (SPEC §25)
       if (client) {
         try {
           const res = await runChat({
@@ -181,21 +225,7 @@ export function ChatPanel({ lib, draft, baseId, units, onOpenEntry }: {
         signal: controller.signal, modelTier: 'default', cache: false,
       });
       const act = parseJsonAction(raw);
-      let summary = '';
-      if (act.action !== 'none' && act.changes) {
-        setStatus('Saving a new version…');
-        try {
-          const tool = tools.find((t) => t.name === (act.action === 'create' ? 'create_recipe' : 'edit_recipe'))!;
-          const out = (await tool.execute(act.action === 'create'
-            ? { note: act.note ?? 'Created by the assistant', recipe: act.changes }
-            : { base_id: act.base_id ?? 'draft', note: act.note ?? 'Edited by the assistant', changes: act.changes }, { signal: controller.signal })) as
-            { name: string; version: number; computed: { og: number; abv: number; fg: number; finished_ph: number; flags: string[] } };
-          const c = out.computed;
-          summary = `\n\nSaved ${out.name} v${out.version}: OG ${c.og.toFixed(3)} · FG ${c.fg.toFixed(3)} · ${c.abv.toFixed(1)} % ABV · pH ≈ ${c.finished_ph.toFixed(2)}${c.flags.length ? `\nCheck recipe: ${c.flags.join('; ')}` : ''}`;
-        } catch (e) {
-          summary = `\n\n(I couldn’t save that change: ${(e as Error).message})`;
-        }
-      }
+      const summary = await applyAction(act);
       update({ text: (act.reply || 'Done.') + summary, note: jsonMode || !toolsOk ? undefined : 'Answered in simple mode.' });
     } catch (e) {
       const err = e as { code?: string; message?: string; text?: string };
@@ -209,8 +239,8 @@ export function ChatPanel({ lib, draft, baseId, units, onOpenEntry }: {
 
   // Locked until an AI is connected: the subscriber's own key, or the Claude account this page runs in
   if (setup) return <AiConnect insideClaude={!!sample} onDone={() => setSetup(false)} />;
-  if (!client && sample === undefined) return <p className="py-8 text-center text-sm text-stone-500">Connecting to Claude…</p>;
-  if (!client && (sample === null || fatal)) {
+  if (!ai && sample === undefined) return <p className="py-8 text-center text-sm text-stone-500">Connecting to Claude…</p>;
+  if (!ai && (sample === null || fatal)) {
     return (
       <div>
         {fatal && <p className="mb-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">{fatal}</p>}
@@ -253,7 +283,7 @@ export function ChatPanel({ lib, draft, baseId, units, onOpenEntry }: {
               {m.failed && (
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
                   {!busy && <button className="btn-ghost border border-stone-300 px-2 py-0.5 text-xs dark:border-stone-700" onClick={() => send(m.failed!.question, true)}>Try again</button>}
-                  {!busy && client && KEY_PROBLEMS.has(m.failed.detail.split(':')[0]) && <button className="btn-ghost border border-stone-300 px-2 py-0.5 text-xs dark:border-stone-700" onClick={() => setSetup(true)}>AI settings</button>}
+                  {!busy && ai && KEY_PROBLEMS.has(m.failed.detail.split(':')[0]) && <button className="btn-ghost border border-stone-300 px-2 py-0.5 text-xs dark:border-stone-700" onClick={() => setSetup(true)}>AI settings</button>}
                   <details className="text-stone-500"><summary className="cursor-pointer">Details</summary><code className="break-all">{m.failed.detail}</code></details>
                 </div>
               )}
@@ -273,7 +303,7 @@ export function ChatPanel({ lib, draft, baseId, units, onOpenEntry }: {
           : <button type="submit" className="btn-primary" disabled={!input.trim()}>Send</button>}
       </form>
       <div className="flex justify-between pt-1 text-[11px] text-stone-500">
-        <span>{client ? 'Uses your Anthropic API key. Replies with saves can take 30–90 s.' : toolsOk && !jsonMode ? 'Uses your Claude usage. Replies with saves can take 30–90 s.' : 'Simple mode: Claude proposes a change and the app saves it.'}</span>
+        <span>{ai ? `Uses your ${providerName(ai)} key (${ai.model}).` : toolsOk && !jsonMode ? 'Uses your Claude usage. Replies with saves can take 30–90 s.' : 'Simple mode: Claude proposes a change and the app saves it.'}</span>
         <span className="flex shrink-0 gap-3">
           {!busy && <button className="underline" onClick={() => setSetup(true)}>AI settings</button>}
           {msgs.length > 0 && !busy && <button className="underline" onClick={() => setMsgs([])}>Clear chat</button>}

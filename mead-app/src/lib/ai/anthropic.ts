@@ -4,19 +4,14 @@
  */
 import Anthropic from '@anthropic-ai/sdk';
 import type { ChatTool } from '../chat';
-import { validate, type Schema } from './validate';
+import { execToolCall } from './toolexec';
 
 export const MODEL = 'claude-opus-5-5';
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 const MAX_ROUNDS = 10;
 
-export type AiErrorCode =
-  | 'bad_key' | 'no_access' | 'billing' | 'rate_limited' | 'overloaded' | 'network'
-  | 'cancelled' | 'refused' | 'truncated' | 'invalid_request' | 'not_found' | 'too_large' | 'upstream_error';
-
-export class AiError extends Error {
-  constructor(public code: AiErrorCode, message: string, public text = '') { super(message); }
-}
+import { AiError } from './errors';
+export { AiError, type AiErrorCode } from './errors';
 
 export type Client = Pick<Anthropic, 'models'> & { beta: { messages: Pick<Anthropic['beta']['messages'], 'stream'> } };
 
@@ -86,18 +81,9 @@ export function visibleText(content: Anthropic.Beta.BetaContentBlock[]): string 
 }
 
 async function runTool(tool: ChatTool | undefined, block: Anthropic.Beta.BetaToolUseBlock, signal?: AbortSignal): Promise<Anthropic.Beta.BetaToolResultBlockParam> {
-  const base = { type: 'tool_result' as const, tool_use_id: block.id };
-  if (!tool) return { ...base, is_error: true, content: `Unknown tool "${block.name}".` };
-  // Eager input streaming: the server does not validate inputs, so check them here (SPEC §25.3)
-  const problems = validate(block.input, tool.inputSchema as Schema | undefined);
-  if (problems.length) return { ...base, is_error: true, content: JSON.stringify({ INVALID_JSON: JSON.stringify(block.input), problems }) };
-  try {
-    const out = await tool.execute(block.input as Record<string, unknown>, { signal });
-    return { ...base, content: JSON.stringify(out ?? null) };
-  } catch (e) {
-    if (signal?.aborted) throw new AiError('cancelled', 'Stopped by the user');
-    return { ...base, is_error: true, content: (e as Error).message || 'Tool failed' };
-  }
+  // Eager input streaming: the server does not validate inputs, so execToolCall checks them (SPEC §25.3)
+  const r = await execToolCall(tool, block.name, block.input, signal);
+  return { type: 'tool_result', tool_use_id: block.id, content: r.content, ...(r.isError ? { is_error: true } : {}) };
 }
 
 export async function runChat(a: RunArgs): Promise<RunResult> {

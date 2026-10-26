@@ -769,7 +769,7 @@ outage. Changes:
 Goal: subscribers connect **their own** Claude account; without one, the assistant is locked and every other feature still works.
 
 ### 25.1 Which AI runs (in order)
-1. **Own key connected** → the subscriber's Anthropic API key, called straight from the browser with the official `@anthropic-ai/sdk` (`dangerouslyAllowBrowser: true`; the key is sent only to api.anthropic.com).
+1. **Own key connected** → the subscriber's chosen provider (§25.5). For Claude: the Anthropic API key, called straight from the browser with the official `@anthropic-ai/sdk` (`dangerouslyAllowBrowser: true`; the key is sent only to api.anthropic.com).
 2. **Running inside Claude** (artifact `sample` capability) → the viewer's Claude account, as in §24.
 3. **Neither** → locked: the ✨ button shows 🔒 and the chat shows "Connect your AI to unlock the assistant".
 
@@ -786,6 +786,23 @@ A Claude.ai Pro/Max *chat* subscription cannot be linked to third-party apps; th
 - Tools = §24 ChatTools with `eager_input_streaming: true`. Because the server no longer validates inputs, each input is checked against its schema (`validate.ts`, tested to agree with Ajv) before running; a failure returns `{"INVALID_JSON": …}` as an `is_error` tool result. All results of a turn go back in one user message.
 - Stop reasons: `refusal` → stop, never run that turn's tools; `max_tokens` with a tool call → stop (`truncated`), without → show text as cut short; `pause_turn` → resend; cap 10 rounds.
 - Only an unparseable tool input is retried (max 2 in a row); SDK API errors are mapped by class: 401 `bad_key`, 403 `no_access`, 402 `billing`, 404 `not_found`, 429 `rate_limited`, 413 `too_large`, 529 `overloaded`, connection `network`, abort `cancelled`. Key problems offer an "AI settings" button.
+
+### 25.5 Any AI provider (providers.ts, openai-compat.ts)
+Free chat apps (Claude.ai, ChatGPT, the Gemini app) cannot be linked to other apps by anyone; every route is an **API key**. Some API keys are free:
+| Provider | Price | Notes |
+|---|---|---|
+| Google Gemini | Free tier (Flash models) | Key from aistudio.google.com, no card. Free-tier prompts may be used by Google to improve products. Google's terms ask for the paid tier when serving users in the EEA, UK and Switzerland. Browser CORS verified. |
+| Claude (Anthropic) | Pay per use | Official SDK path, §25.3. |
+| OpenRouter | Free `:free` models + paid | Free: 20/min, 50/day (1,000/day after a one-time $10 top-up). |
+| OpenAI, Groq, Mistral | Paid / free tiers | OpenAI-compatible. |
+| Ollama | Free, local | Needs `OLLAMA_ORIGINS` set to the site's address. |
+| Other | — | Any OpenAI-compatible base URL. |
+
+- Connect = `GET {base}/models` with `Authorization: Bearer <key>`; a 400 there means a bad key (Gemini's style). `models/` prefixes are stripped, non-chat models (embedding, image, audio…) hidden, and a default picked per provider (`pickModel`: Gemini → newest non-preview `gemini-x-flash`; OpenRouter → `openrouter/free`). The user can switch model in AI settings.
+- Chat = non-streaming `POST {base}/chat/completions` with `tools` (type function) and `tool_choice: "auto"`; tool loop up to 10 rounds; the assistant turn is echoed back unchanged (keeps Gemini thought signatures); each tool reply is a `role: "tool"` message. Arguments are JSON-parsed and schema-checked before running (`execToolCall`, shared with §25.3).
+- Every tool has at least one parameter (Gemini rejects empty `properties`): `list_recipes` takes an optional `limit`.
+- If the first request is rejected (400/404: model or gateway without function calling), the chat falls back to JSON mode (§24.3) on the same model: `JSON_MODE_RULES`, first JSON object extracted from the reply, page saves it.
+- `<think>…</think>` text from reasoning models is hidden. Errors hidden in a 200 body (OpenRouter) are surfaced. `finish_reason` `length` with a tool call → `truncated`; `content_filter` → `refused`.
 
 ### 25.4 Selling checklist (outside this repo)
 Hosting (static), payments/subscriptions (Stripe, Paddle or Lemon Squeezy), accounts + cloud recipe storage to replace the Claude `db` capability, privacy policy (keys stay on device; recipes stored where?), terms, and the source-licence notes in §15.
