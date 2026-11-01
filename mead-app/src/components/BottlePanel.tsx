@@ -36,6 +36,8 @@ const Fact = ({ k, v }: { k: string; v: string }) => (<><dt className="text-ston
 export function BottlePanel({ a, uh, onExport, onSave, saveLabel }: { a: Analysis; uh: UnitHelpers; onExport: () => void; onSave: () => void; saveLabel: string }) {
   const kcal = caloriesPerServing(a.abv, a.residualSugarGPerL, 150);
   const yieldL = a.occupancy.recoveredL + (a.whole.volumeL - a.primary.volumeL);
+  // Claude artifact frames refuse window.print
+  const canPrint = !(window as unknown as { claude?: unknown }).claude;
   return (
     <Card title="Bottle & share" icon="🍾">
       <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
@@ -67,8 +69,9 @@ export function BottlePanel({ a, uh, onExport, onSave, saveLabel }: { a: Analysi
       <div className="mt-4 flex flex-wrap gap-2">
         <button type="button" className="btn-primary" onClick={onSave}>💾 {saveLabel}</button>
         <button type="button" className="btn-ghost border border-stone-300 dark:border-stone-700" onClick={onExport}>⬇️ Excel / Sheets</button>
-        <button type="button" className="btn-ghost border border-stone-300 dark:border-stone-700" onClick={() => window.print()}>🖨️ Print cellar sheet</button>
+        {canPrint && <button type="button" className="btn-ghost border border-stone-300 dark:border-stone-700" onClick={() => window.print()}>🖨️ Print cellar sheet</button>}
       </div>
+      {!canPrint && <p className="mt-2 text-[11px] text-stone-500">Printing is blocked inside Claude. In the hosted app, “Print cellar sheet” gives a one-page sheet; here, export to Excel and print that.</p>}
     </Card>
   );
 }
