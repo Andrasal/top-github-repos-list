@@ -806,3 +806,32 @@ Free chat apps (Claude.ai, ChatGPT, the Gemini app) cannot be linked to other ap
 
 ### 25.4 Selling checklist (outside this repo)
 Hosting (static), payments/subscriptions (Stripe, Paddle or Lemon Squeezy), accounts + cloud recipe storage to replace the Claude `db` capability, privacy policy (keys stay on device; recipes stored where?), terms, and the source-licence notes in §15.
+
+## 26. Cellar Tools (cellar.ts) — added after reviewing the Gemini prototype
+* **Hydrometer temperature correction:** `SG = R × ρw(T_cal) / ρw(T_sample)`, water density from Tanaka et al. (Metrologia 2001). 1.050 read at 30 °C on a 20 °C instrument → 1.0527. Glass expansion ignored (< 0.0002).
+* **Refractometer:** before fermentation `SG = platoToSg(°Bx / WCF)`; after it starts, the Terrill (2011) cubic from original and current °Bx. Fitted on beer, so labelled ±0.003 for mead.
+* **Calories:** ethanol 7.0 kcal/g at its true density 0.78924 g/mL (not the 0.794 fitted constant of the ABV formula) + 4 kcal/g residual sugar. 12 %, 10 g/L, 150 mL → 105 kcal.
+* **Bench trial:** mg in a glass ÷ mL → g/L → grams for the batch.
+* **Sulfite from a weighing:** `ppm = g × SO₂ fraction × 1000 / V` (reverse of §13.2).
+* **Vessel presets:** home (1 gal … 25 L) and commercial (1 bbl = 117.35 L … 15 bbl, 500 L, 1,000 L IBC).
+
+## 27. Back-sweetening Solver (backsweeten.ts)
+* Mixing model: mass and alcohol volume conserved, volumes additive (spirit–mead contraction ignored, < 0.3 % of the spirit volume).
+* Honey per kg from the calibrated extract in the dilute Lincoln limit: `PKL = 1000·100·E / (258.6·ρw)` ≈ 309 and `v = 1/ρw − PKL/1000` ≈ 0.693 L/kg, so it agrees with the must solver.
+* Spirit density from the CRC/Perry's ethanol–water table at 20 °C (by mass fraction, converted to % vol by bisection). 40 % vol → 0.948. **The Gemini prototype used a straight-line blend (0.918), which overstates the honey and spirit needed.**
+* Three answers: (1) honey only (shows the ABV lost to dilution); (2) honey + water or honey + spirit solved together as a 2×2 linear system for target SG and ABV, with reasons when targets are impossible; (3) plan ahead: the primary OG that, fermented dry and then sweetened with honey, lands on both targets (`ogForTarget`), with a button that scales the recipe's honey.
+* Known limitation: the main analysis still treats a target FG as "stop at this gravity". Back-sweetening a dry mead dilutes it, so the Backsweeten step is the place for that ABV.
+
+## 28. Brew-day Checklist (brewday.ts) & Cellar Sheet
+* Steps generated from the analysis: vessel size, water, each honey and fruit, top-up, OG, yeast and Go-Ferm grams, the four nutrient doses, degassing, cap management, racking, secondary fruit and botanicals with contact days, sulfite/sorbate grams, back-sweetening, bottle count. Stable ids (`honey-<uid>`, `dose-n`…) so ticks survive edits; ticks stored in `recipe.brewDay.done`.
+* Printable cellar sheet (print stylesheet): summary table, the steps with ticks, and a blank gravity log.
+
+## 29. Guided Flow (Pages.tsx) — UX
+* Eight steps in brewing order, in three phases: **Plan** (Honey & batch, Yeast & nutrients, Flowers & spices, Acidity & pH), **Ferment** (Brew day & log), **Finish** (Stabilise, Backsweeten, Bottle & share). Back / Next at the end of each step; the current step is remembered.
+* A **Guide** toggle shows a short plain-language explainer on every step (our own words).
+* Yeast catalog (19 strains) with maker and nitrogen filters; only strains whose tolerance and temperature could be checked against maker or retailer data were added.
+* Desktop: a sticky sidebar with the predicted glass colour and key numbers. Phones: the header scrolls away to save space.
+* Theme switch (auto / light / dark) and a display serif (Fraunces) for headings.
+
+### 29.1 Gemini prototype review (2026-11-01)
+Reviewed the user's Gemini-built "Mead Lab" (single HTML file). Adopted its best ideas (guided steps, beginner guide, backsweetening, brew-day checklist, print sheet, vessel presets, hydrometer correction, bigger yeast list, calories). Its defects, not carried over: it crashes on load (a value used before it is defined); a blank recipe shows pH 9.50, TA 0 and "11,848 mg/L SO₂"; 40 % spirit density 0.918 instead of 0.948; the Acid page shows the Sulfite page's guide text; AI model list hard-coded rather than read from the key.

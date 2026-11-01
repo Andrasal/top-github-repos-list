@@ -35,6 +35,8 @@ export interface Recipe {
   alkalinityCaCO3: number;
   /** Acid / base additions (SPEC §22). */
   adjustments: Adjustment[];
+  /** Brew-day checklist: ids of ticked steps (SPEC §28). */
+  brewDay?: { done: string[] };
 }
 
 /** SPEC §13 — stabilisation inputs. Volume defaults to the expected recovered volume. */

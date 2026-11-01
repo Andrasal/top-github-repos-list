@@ -21,11 +21,13 @@ A professional mead recipe builder, calculator and flavor advisor. React + TypeS
 - **AI recipe assistant**: describe a mead or a change and Claude designs or edits it, always saving a new version. Subscribers connect their own AI: Gemini (free tier), Claude, OpenRouter (free models), OpenAI, Groq, Mistral, Ollama or any OpenAI-compatible API. The key stays in their browser; without one the assistant is locked. Inside Claude it uses the viewer's Claude account.
 - Metric by default, with an Imperial switch. A local JSON database of honeys, fruits, spices and yeasts, each row citing its source.
 
+- **Guided steps** in brewing order (Plan → Ferment → Finish) with a beginner guide on each, a brew-day checklist that remembers your ticks, a printable cellar sheet, a back-sweetening solver (honey, water or spirit to hit both sweetness and ABV), hydrometer/refractometer correction, bench-trial scaling, calories and vessel-size presets.
+
 ## Run
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm test         # Vitest — 168 tests (incl. LibreOffice recalculation of the Excel export)
+npm test         # Vitest — 182 tests (incl. LibreOffice recalculation of the Excel export)
 npm run build
 npm run build:single   # one self-contained HTML file
 ```

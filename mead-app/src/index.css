@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 @layer base {
-  html { color-scheme: light; }
+  html { color-scheme: light; @apply bg-stone-50 dark:bg-stone-950; }
   @media (prefers-color-scheme: dark) { html:not([data-theme=light]) { color-scheme: dark; } }
   html[data-theme=dark] { color-scheme: dark; }
   body { @apply bg-stone-50 text-stone-900 antialiased dark:bg-stone-950 dark:text-stone-100; }
@@ -16,4 +16,21 @@
   .btn-ghost { @apply btn text-stone-600 hover:bg-stone-200/70 dark:text-stone-300 dark:hover:bg-stone-800; }
   .label { @apply text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-stone-400; }
   .tabular { font-variant-numeric: tabular-nums; }
+}
+
+@layer utilities {
+  .font-display { font-family: 'Fraunces', Georgia, serif; font-optical-sizing: auto; }
+}
+/* Bubbles in the glass (off when the user prefers less motion) */
+@keyframes mead-rise { 0% { transform: translateY(0); opacity: 0.7; } 100% { transform: translateY(-40px); opacity: 0; } }
+.mead-bubble { animation: mead-rise 2.8s ease-in infinite; }
+.mead-bubble-2 { animation-delay: 0.9s; }
+.mead-bubble-3 { animation-delay: 1.7s; }
+@media (prefers-reduced-motion: reduce) { .mead-bubble { animation: none; } }
+/* Print: only the cellar sheet */
+@media print {
+  .no-print { display: none !important; }
+  .print-sheet { display: block !important; }
+  body { background: #fff !important; color: #000 !important; }
+  @page { margin: 14mm; }
 }

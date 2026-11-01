@@ -1,15 +1,14 @@
+import { useState } from 'react';
 import type { Recipe } from '../lib/recipe';
-import { YEASTS, yeastById } from '../lib/db';
-import { PROTOCOL_LABELS, Protocol } from '../lib/nutrients';
-import type { NDemand } from '../lib/constants';
+import { VESSELS } from '../lib/cellar';
 import { Card, NumberField, Select, Tip } from './ui';
 import type { UnitHelpers } from './units';
 import { DesignerTools } from './DesignerTools';
 
 export function BatchPanel({ r, set, replace, uh }: { r: Recipe; set: (p: Partial<Recipe>) => void; replace: (r: Recipe) => void; uh: UnitHelpers }) {
-  const yeast = yeastById(r.yeastId);
+  const [pro, setPro] = useState(r.targetVolumeL > 60);
   return (
-    <Card title="Batch & Yeast" icon="🧪">
+    <Card title="Batch size & finish" icon="🪣">
       <div className="grid grid-cols-2 gap-3">
         <label className="col-span-2 flex flex-col gap-1">
           <span className="label">Recipe name</span>
@@ -37,39 +36,27 @@ export function BatchPanel({ r, set, replace, uh }: { r: Recipe; set: (p: Partia
         ) : (
           <NumberField label="Water added" value={r.waterL} onChange={(v) => set({ waterL: v })} {...uh.vol} decimals={2} hint="Volume and OG are derived from the water you add (SPEC §5.2 fixed-water mode)." />
         )}
-        <Select
-          label="Yeast"
-          className="col-span-2"
-          value={r.yeastId}
-          onChange={(yeastId) => set({ yeastId })}
-          options={YEASTS.map((y) => ({ value: y.id, label: `${y.name} — ${y.tolerance}% · N ${y.nDemand}` }))}
-        />
-        <p className="col-span-2 -mt-1 text-xs text-stone-500 dark:text-stone-400">
-          {yeast.notes} Temp {yeast.tempC[0]}–{yeast.tempC[1]} °C.
-        </p>
-        <Select<NDemand | 'auto'>
-          label="N demand"
-          value={r.nDemandOverride ?? 'auto'}
-          onChange={(v) => set({ nDemandOverride: v === 'auto' ? null : v })}
-          options={[
-            { value: 'auto', label: `Strain default (${yeast.nDemand})` },
-            { value: 'low', label: 'Low (×0.75)' },
-            { value: 'medium', label: 'Medium (×0.90)' },
-            { value: 'high', label: 'High (×1.25)' },
-            { value: 'veryHigh', label: 'Very high (×1.50)' },
-          ]}
-        />
-        <Select<Protocol>
-          label="Nutrient protocol"
-          value={r.protocol}
-          onChange={(protocol) => set({ protocol })}
-          options={(Object.keys(PROTOCOL_LABELS) as Protocol[]).map((p) => ({ value: p, label: PROTOCOL_LABELS[p] }))}
-        />
-        <label className="col-span-2 flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={r.creditFruitYan} onChange={(e) => set({ creditFruitYan: e.target.checked })} />
-          Credit YAN from primary fruit
-          <Tip>Off by default: fruit YAN varies ±50 % by cultivar and ripeness. Honey is treated as 0 YAN (SPEC §7.1).</Tip>
-        </label>
+        {r.mode === 'targetVolume' && (
+          <div className="col-span-2">
+            <div className="mb-1 flex items-center justify-between">
+              <span className="label">Quick sizes</span>
+              <span className="flex rounded-md bg-stone-200 p-0.5 text-xs dark:bg-stone-800" role="group" aria-label="Batch scale">
+                {([false, true] as const).map((v) => (
+                  <button key={String(v)} type="button" aria-pressed={pro === v} onClick={() => setPro(v)} className={`rounded px-2 py-0.5 ${pro === v ? 'bg-white shadow dark:bg-stone-600' : 'text-stone-500'}`}>{v ? 'Commercial' : 'Home'}</button>
+                ))}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {VESSELS.filter((x) => (x.scale === 'pro') === pro).map((x) => (
+                <button key={x.label} type="button" onClick={() => set({ targetVolumeL: Number(x.litres.toFixed(3)) })}
+                  className={`rounded-full border px-2.5 py-1 text-xs ${Math.abs(r.targetVolumeL - x.litres) < 0.01 ? 'border-honey-500 bg-honey-100 font-semibold dark:bg-honey-900/40' : 'border-stone-300 hover:bg-honey-50 dark:border-stone-700 dark:hover:bg-honey-900/20'}`}>
+                  {x.label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[11px] text-stone-500">This is the must volume. Pick a fermenter about 20–30 % bigger; the Brew day step tells you the size.</p>
+          </div>
+        )}
         <label className="col-span-2 flex items-center gap-2 text-sm">
           <input type="checkbox" checked={r.targetFg != null} onChange={(e) => set({ targetFg: e.target.checked ? 1.012 : null })} />
           Stop / back-sweeten to a target FG
