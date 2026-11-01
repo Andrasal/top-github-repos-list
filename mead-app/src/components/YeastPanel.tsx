@@ -4,6 +4,7 @@ import { YEASTS, yeastById } from '../lib/db';
 import { PROTOCOL_LABELS, Protocol } from '../lib/nutrients';
 import type { NDemand } from '../lib/constants';
 import { Card, Select, Tip } from './ui';
+import { ExpertOnly } from './detail';
 
 const N_LABEL: Record<NDemand, string> = { low: 'Low N', medium: 'Medium N', high: 'High N', veryHigh: 'Very high N' };
 const N_TONE: Record<NDemand, string> = {
@@ -63,7 +64,7 @@ export function YeastPanel({ r, set, abvDry }: { r: Recipe; set: (p: Partial<Rec
       )}
 
       <div className="mt-3 grid grid-cols-2 gap-3">
-        <Select<NDemand | 'auto'>
+        <ExpertOnly><Select<NDemand | 'auto'>
           label="N demand"
           value={r.nDemandOverride ?? 'auto'}
           onChange={(v) => set({ nDemandOverride: v === 'auto' ? null : v })}
@@ -74,18 +75,18 @@ export function YeastPanel({ r, set, abvDry }: { r: Recipe; set: (p: Partial<Rec
             { value: 'high', label: 'High (×1.25)' },
             { value: 'veryHigh', label: 'Very high (×1.50)' },
           ]}
-        />
+        /></ExpertOnly>
         <Select<Protocol>
           label="Nutrient protocol"
           value={r.protocol}
           onChange={(protocol) => set({ protocol })}
           options={(Object.keys(PROTOCOL_LABELS) as Protocol[]).map((p) => ({ value: p, label: PROTOCOL_LABELS[p] }))}
         />
-        <label className="col-span-2 flex items-center gap-2 text-sm">
+        <ExpertOnly><label className="col-span-2 flex items-center gap-2 text-sm">
           <input type="checkbox" checked={r.creditFruitYan} onChange={(e) => set({ creditFruitYan: e.target.checked })} />
           Credit YAN from primary fruit
           <Tip>Off by default: fruit YAN varies ±50 % by cultivar and ripeness. Honey is treated as 0 YAN (SPEC §7.1).</Tip>
-        </label>
+        </label></ExpertOnly>
       </div>
       <p className="mt-2 text-[11px] text-stone-500">Strain data from the makers’ sheets. Check your packet: makers revise them.</p>
     </Card>

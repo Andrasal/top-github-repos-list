@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { SOURCES } from '../lib/sources';
+import { useExpert } from './detail';
 
 export function Card({ title, icon, children, actions, id }: { title: string; icon?: string; children: ReactNode; actions?: ReactNode; id?: string }) {
   return (
@@ -139,6 +140,7 @@ export function Modal({ open, onClose, title, children }: { open: boolean; onClo
 }
 
 export function Cite({ ids }: { ids: string[] }) {
+  if (!useExpert()) return null;
   return (
     <span className="inline-flex flex-wrap gap-1">
       {ids.map((id) => {

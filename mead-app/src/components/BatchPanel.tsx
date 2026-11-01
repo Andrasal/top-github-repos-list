@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Recipe } from '../lib/recipe';
 import { VESSELS } from '../lib/cellar';
+import { ExpertOnly } from './detail';
 import { Card, NumberField, Select, Tip } from './ui';
 import type { UnitHelpers } from './units';
 import { DesignerTools } from './DesignerTools';
@@ -11,10 +12,10 @@ export function BatchPanel({ r, set, replace, uh }: { r: Recipe; set: (p: Partia
     <Card title="Batch size & finish" icon="🪣">
       <div className="grid grid-cols-2 gap-3">
         <label className="col-span-2 flex flex-col gap-1">
-          <span className="label">Recipe name</span>
+          <span className="label">Name your mead</span>
           <input value={r.name} onChange={(e) => set({ name: e.target.value })} />
         </label>
-        <Select
+        <ExpertOnly><Select
           label="Volume mode"
           value={r.mode}
           onChange={(mode) => set({ mode })}
@@ -22,7 +23,7 @@ export function BatchPanel({ r, set, replace, uh }: { r: Recipe; set: (p: Partia
             { value: 'targetVolume', label: 'Target must volume' },
             { value: 'fixedWater', label: 'Fixed water added' },
           ]}
-        />
+        /></ExpertOnly>
         {r.mode === 'targetVolume' ? (
           <NumberField
             label="Must volume"
@@ -59,13 +60,13 @@ export function BatchPanel({ r, set, replace, uh }: { r: Recipe; set: (p: Partia
         )}
         <label className="col-span-2 flex items-center gap-2 text-sm">
           <input type="checkbox" checked={r.targetFg != null} onChange={(e) => set({ targetFg: e.target.checked ? 1.012 : null })} />
-          Stop / back-sweeten to a target FG
+          I’ll stop it or sweeten it to a set finish
           <Tip>Use when you'll stabilise and back-sweeten, or stop fermentation early. A target lower than the yeast can reach is ignored (SPEC §6.1).</Tip>
         </label>
         {r.targetFg != null && (
           <NumberField label="Target FG" value={r.targetFg} onChange={(v) => set({ targetFg: v })} step={0.001} min={0.99} max={1.2} decimals={3} />
         )}
-        <NumberField
+        <ExpertOnly><NumberField
           label="Dry FG baseline"
           value={r.dryFg}
           onChange={(v) => set({ dryFg: v })}
@@ -74,7 +75,7 @@ export function BatchPanel({ r, set, replace, uh }: { r: Recipe; set: (p: Partia
           max={1.005}
           decimals={3}
           hint="Terminal gravity of a fully dry mead. Ethanol is lighter than water, so dry meads read ~0.994–0.998 (SPEC §2.2)."
-        />
+        /></ExpertOnly>
       </div>
       <DesignerTools r={r} replace={replace} uh={uh} />
     </Card>

@@ -1,5 +1,6 @@
 import type { Analysis } from '../lib/recipe';
 import { Card, Stat, Tip } from './ui';
+import { MoreDetail } from './detail';
 import type { UnitHelpers } from './units';
 
 const STRENGTH: Record<string, string> = {
@@ -25,7 +26,8 @@ export function ResultsPanel({ a, uh, onProof }: { a: Analysis; uh: UnitHelpers;
         <Stat label="Fermenter ≥" value={uh.fmtVol(o.recommendedFermenterL, 1)} sub={`${(o.headspaceFraction * 100).toFixed(0)} % headspace`} />
       </div>
 
-      <div className="mt-4">
+      <div className="mt-4"><MoreDetail label="Volume, yield and where the sugar comes from">
+      <div>
         <h3 className="label mb-1 flex items-center gap-1">
           Volume & displacement
           <Tip>Fruit juice replaces water you'd otherwise add. Day-0 counts intact fruit as solid volume; after breakdown only insoluble pulp remains (SPEC §5.3).</Tip>
@@ -66,6 +68,7 @@ export function ResultsPanel({ a, uh, onProof }: { a: Analysis; uh: UnitHelpers;
           </table>
         </div>
       )}
+      </MoreDetail></div>
     </Card>
   );
 }

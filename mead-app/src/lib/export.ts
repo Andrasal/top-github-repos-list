@@ -13,7 +13,7 @@
 import ExcelJS from 'exceljs';
 export { ensureExcel } from './excel-loader';
 import type { Analysis } from './recipe';
-import { fruitById, honeyById, spiceById, sugarById } from './db';
+import { fruitById, GROUP_LABEL, honeyById, spiceById, sugarById } from './db';
 import { doseBand } from './flavor';
 import { honeyExtractFromDensity } from './must';
 import { PROTOCOL_LABELS } from './nutrients';
@@ -323,7 +323,7 @@ export function buildWorkbook(a: Analysis, opts: ExportOptions = {}): ExcelJS.Wo
   const firstBot = ing.row;
   for (const sp of r.spices) {
     const x = spiceById(sp.spiceId), n = ing.row, dose = a.whole.volumeL > 0 ? sp.grams / a.whole.volumeL : 0;
-    const group = { spice: 'Spice', floral: 'Flower', herb: 'Herb', adjunct: 'Adjunct' }[x.group];
+    const group = GROUP_LABEL[x.group];
     ing.add([group, x.name, sp.grams, f(`C${n}/28.349523125`, r3(sp.grams / 28.349523125)), f(`C${n}/${DV}`, r3(dose)), x.subtle, x.typical, x.bold, x.max,
       f(BAND_FORMULA(`E${n}`, `F${n}`, `G${n}`, `H${n}`, `I${n}`), BAND_LABEL[doseBand(x, dose)]), `${x.contactDays[0]}–${x.contactDays[1]}`, `${x.form}. ${x.notes}`],
     { fmt: { 2: '0.0', 3: '0.000', 4: '0.000', 5: '0.00', 6: '0.00', 7: '0.00', 8: '0.00' }, input: [2], span: [11, 15] });

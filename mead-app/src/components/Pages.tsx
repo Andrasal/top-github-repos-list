@@ -26,11 +26,12 @@ export const PAGES: PageDef[] = [
     </> },
   },
   {
-    id: 'flavour', icon: '🌸', label: 'Flowers & spices', phase: 'Plan', title: 'Flowers, herbs, spices and the flavour advisor',
-    blurb: 'Add botanicals, see the predicted flavour, and get suggestions that suit your recipe.',
-    guide: { title: 'How much spice is enough?', body: <>
-      <p>Botanicals are usually added after the main ferment, in a sanitised bag, and tasted every 2–3 days. Pull them when it tastes right: it is easy to add more and impossible to take it out.</p>
-      <p className="mt-1">Each meter shows where your dose sits from subtle to “will dominate”.</p>
+    id: 'flavour', icon: '🌸', label: 'Flavour & oak', phase: 'Plan', title: 'Flavour: flowers, spices, oak and tannin',
+    blurb: 'Add botanicals, wood, tannin or aroma boosters, see the predicted flavour, and get suggestions that suit your recipe.',
+    guide: { title: 'How much, and when?', body: <>
+      <p>Most flavourings go in <b>after</b> the main ferment, in a sanitised bag, and are tasted every 2–3 days. Pull them when it tastes right: it is easy to add more and impossible to take it out.</p>
+      <p className="mt-1"><b>Oak chips</b> work in 1–3 weeks, <b>cubes</b> in 4–12. <b>Tannin powders</b> stay in, so bench-trial a glass first. <b>L-phenylalanine</b> goes in at pitch: the yeast turns it into a rose-and-honey aroma.</p>
+      <p className="mt-1">Each meter shows where your dose sits, from subtle to “will dominate”.</p>
     </> },
   },
   {

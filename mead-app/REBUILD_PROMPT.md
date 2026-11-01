@@ -170,6 +170,12 @@ Audit the export again as a stranger opening it: missing names, unlabelled value
 - **Tests.** Write unit tests with mocked clients and fetch, plus Playwright end-to-end tests with mocked provider endpoints: bad key, good key, a tool edit saving v2 with the original kept, a no-tools model in JSON mode, and disconnect.
 - **Selling checklist** in the spec: static hosting, payments (Stripe, Paddle or Lemon Squeezy), accounts and cloud recipe storage, privacy policy, terms, and the licence notes.
 
+## Phase 8 — Guided flow and cellar tools
+Eight steps in brewing order (Plan → Ferment → Finish) with a beginner guide, a back-sweetening solver (honey only; honey + water/spirit for both target SG and ABV using real ethanol–water densities; or a higher primary OG), a brew-day checklist generated from the recipe, a printable cellar sheet, hydrometer/refractometer correction, bench-trial scaling, calories, vessel presets, and a yeast catalog with filters (only strains you can verify).
+
+## Phase 9 — Adjuncts, usability review, redesign
+Add wood (oak chips/cubes by origin and toast, barrel chips, acacia, cherry) with contact times, tannin powders (chestnut, grape, oak), L-phenylalanine (0.14–0.28 g/L, at pitch), coconut, hops and process aids, each with dose bands and timing. Then walk through the whole app on a phone as a first-time brewer, write down what gets in the way, and redesign: compact header with key numbers and a menu, Simple/Expert detail level, a start-from-a-style strip, one searchable flavour picker, a shopping list, a brew-day "next up", and sulfite reduced to the answer.
+
 ## Optional: publishing as a Claude artifact
 If the app also runs as a Claude artifact:
 - Inside Claude, use the `sample` capability as the AI.

@@ -23,11 +23,14 @@ A professional mead recipe builder, calculator and flavor advisor. React + TypeS
 
 - **Guided steps** in brewing order (Plan → Ferment → Finish) with a beginner guide on each, a brew-day checklist that remembers your ticks, a printable cellar sheet, a back-sweetening solver (honey, water or spirit to hit both sweetness and ABV), hydrometer/refractometer correction, bench-trial scaling, calories and vessel-size presets.
 
+- **Adjuncts:** oak chips and cubes (American, French, Hungarian; toast levels), bourbon/rum/wine barrel chips, acacia and cherry wood, chestnut/grape/oak tannin powders, L-phenylalanine (0.14–0.28 g/L at pitch), coconut, hops and process aids (pectic enzyme, bentonite, yeast hulls), each with its own dose meter and timing.
+- **Simple / Expert** detail level, a compact header with a ⋯ menu, a searchable flavour picker and a shopping list.
+
 ## Run
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm test         # Vitest — 182 tests (incl. LibreOffice recalculation of the Excel export)
+npm test         # Vitest — 187 tests (incl. LibreOffice recalculation of the Excel export)
 npm run build
 npm run build:single   # one self-contained HTML file
 ```

@@ -22,13 +22,15 @@ export function flavourProfile(x: ProfileInput): Record<Axis, number> {
   const fruitInt = x.fruits.map(({ fruit, massKg }) => ({ fruit, i: massKg / V / fruit.typical }));
   const spiceInt = x.spices.map(({ spice, grams }) => ({ spice, i: (grams / V / spice.typical) * (spice.flavour ?? 1) }));
   const fruitLoad = x.fruits.reduce((a, f) => a + f.massKg, 0) / V;
-  const sumBy = (groups: Spice['group'][]) => spiceInt.filter((s) => groups.includes(s.spice.group)).reduce((a, s) => a + s.i, 0);
-  const structural = spiceInt.filter((s) => ['oak', 'cacao', 'coffee'].includes(s.spice.id)).reduce((a, s) => a + s.i, 0);
+  const axisOf = (sp: Spice) => sp.axis ?? (sp.group === 'floral' || sp.group === 'herb' ? 'floral' : sp.group === 'aid' || sp.group === 'tannin' ? 'none' : 'spice');
+  const sumAxis = (axis: 'spice' | 'floral') => spiceInt.filter((s) => axisOf(s.spice) === axis).reduce((a, s) => a + s.i, 0);
+  // Tannin from woods, tannin powders, cacao and coffee: dose relative to typical × structural weight
+  const structural = x.spices.reduce((a, { spice, grams }) => a + (grams / V / spice.typical) * (spice.tannin ?? 0), 0);
   const honeyKgL = x.honeys.reduce((a, h) => a + h.massKg, 0) / V;
   const honeyIntensity = x.honeys.length ? x.honeys.reduce((a, h) => a + h.honey.intensity * h.massKg, 0) / Math.max(1e-9, x.honeys.reduce((a, h) => a + h.massKg, 0)) : 0;
   const fruit = fruitInt.reduce((a, f) => a + f.i, 0);
-  const spice = sumBy(['spice', 'adjunct']);
-  const floral = sumBy(['floral', 'herb']);
+  const spice = sumAxis('spice');
+  const floral = sumAxis('floral');
   return {
     Sweetness: clamp(((x.fg - 0.994) / (1.04 - 0.994)) * 10),
     Acidity: clamp(((x.ta - 2) / 7) * 10),

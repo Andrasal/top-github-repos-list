@@ -4,6 +4,7 @@ import { AcidId, BASES, BaseId } from '../lib/acidbase';
 import { doseForTargetPh } from '../lib/phmodel';
 import { fruitById } from '../lib/db';
 import { doseBand } from '../lib/flavor';
+import { ExpertOnly, MoreDetail } from './detail';
 import { Card, Cite, NumberField, RemoveButton, Select, Stat, Tip } from './ui';
 import { uid } from './units';
 
@@ -59,6 +60,7 @@ export function AcidityPanel({ r, set, a }: { r: Recipe; set: (p: Partial<Recipe
         </div>
       </div>
 
+      <div className="mt-4"><MoreDetail label="What moves the pH, and fruit dose curves">
       <div className="mt-4 overflow-x-auto">
         <h3 className="label mb-1 flex items-center gap-1">What moves the pH <Tip>pH change caused by each ingredient: the recipe with it, minus the recipe without it, everything else held fixed. pH doesn't blend linearly: buffered fruit juice keeps close to its own pH even when diluted, while honey has very little buffering. So a fruit can lower the must pH but slightly raise the finished pH: its buffer resists the acids yeast produce.</Tip></h3>
         <table className="tabular w-full text-sm">
@@ -104,6 +106,7 @@ export function AcidityPanel({ r, set, a }: { r: Recipe; set: (p: Partial<Recipe
         </div>
       )}
 
+      </MoreDetail></div>
       <div className="mt-4">
         <div className="mb-1 flex items-center justify-between">
           <h3 className="label">Acid & buffer additions</h3>
@@ -135,9 +138,9 @@ export function AcidityPanel({ r, set, a }: { r: Recipe; set: (p: Partial<Recipe
         {answer && <p className="mt-2 text-sm">{answer}</p>}
       </details>
 
-      <p className="mt-3 text-[11px] leading-snug text-stone-500">
+      <ExpertOnly><p className="mt-3 text-[11px] leading-snug text-stone-500">
         Method: acid–base charge balance with each acid's dissociation constants (Davies activity correction). Fruit is rebuilt from its measured pH and acidity, honey from its pH and acidity (USDA 1962 averages), and water from its alkalinity. Yeast acids are calibrated on two published mead studies, matching their measured pH to within 0.02 on average. Honey pH varies from 3.4 to 6.1, so allow ±0.2. <Cite ids={['fda-ph', 'white-1962', 'pereira-2015', 'aha-water-2015', 'brsquared-fruit', 'crc-pka']} />
-      </p>
+      </p></ExpertOnly>
     </Card>
   );
 }

@@ -17,11 +17,17 @@ export interface Fruit {
   subtle: number; typical: number; bold: number; max: number; color: string; aroma: string;
   /** FDA / Clemson approximate pH range of the fruit. */ phRange: [number, number];
 }
+export type BotanicalGroup = 'spice' | 'floral' | 'herb' | 'adjunct' | 'wood' | 'tannin' | 'aid';
+export const GROUP_LABEL: Record<BotanicalGroup, string> = { spice: 'Spice', floral: 'Flower', herb: 'Herb', adjunct: 'Adjunct', wood: 'Wood', tannin: 'Tannin', aid: 'Process aid' };
 export interface Spice {
   id: string; name: string; form: string; subtle: number; typical: number; bold: number; max: number;
   contactDays: [number, number]; notes: string; source: string[];
-  group: 'spice' | 'floral' | 'herb' | 'adjunct'; aroma: string;
-  /** Flavour weight (1 = default); colour-only botanicals are low. */ flavour?: number;
+  group: BotanicalGroup; aroma: string;
+  /** Flavour weight (1 = default); colour-only botanicals and process aids are low or 0. */ flavour?: number;
+  /** Structural (tannin) weight per typical dose: woods, tannin powders, cacao, coffee. */ tannin?: number;
+  /** Which flavour-radar axis it feeds when not its group's default (L-phenylalanine → floral). */ axis?: 'spice' | 'floral';
+  /** When it goes in (default: after fermentation, in secondary). */ addAt?: 'pitch' | 'secondary' | 'clearing';
+  /** How to add it, for the brew-day checklist. */ use?: string;
   /** g/L titratable acid (tartaric eq.) added per g/L of botanical. */ acidPerG?: number;
 }
 export interface Yeast { id: string; name: string; maker: string; tolerance: number; nDemand: NDemand; tempC: [number, number]; notes: string; source: string[] }

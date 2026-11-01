@@ -1,5 +1,6 @@
 import type { Analysis } from '../lib/recipe';
 import { PROTOCOL_LABELS } from '../lib/nutrients';
+import { ExpertOnly } from './detail';
 import { Card, Cite, Stat, Tip } from './ui';
 
 const g = (v: number) => (v > 0 ? `${v.toFixed(2)} g` : '—');
@@ -54,9 +55,9 @@ export function NutrientPanel({ a }: { a: Analysis }) {
           </tbody>
         </table>
       </div>
-      <p className="mt-2 text-xs text-stone-500">
+      <ExpertOnly><p className="mt-2 text-xs text-stone-500">
         Fermaid O counted at 160 mg N/L per g/L (40 label × 4 organic factor); Fermaid K 100; DAP 210. Degas before each addition. <Cite ids={['tosna', 'scott-handbook', 'meadmaderight']} />
-      </p>
+      </p></ExpertOnly>
     </Card>
   );
 }

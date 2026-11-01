@@ -101,3 +101,57 @@ describe('brew-day checklist (SPEC §28)', () => {
     for (const p of PRESETS) expect(brewDaySteps(analyzeRecipe({ ...DEFAULT_RECIPE, ...p.recipe }), fmt).length).toBeGreaterThan(10);
   });
 });
+
+describe('adjuncts (SPEC §30)', () => {
+  const fmt = { vol: (l: number) => `${l.toFixed(2)} L`, mass: (kg: number) => `${kg.toFixed(2)} kg` };
+  const withSpices = (spices: { spiceId: string; grams: number }[]) =>
+    analyzeRecipe({ ...DEFAULT_RECIPE, spices: spices.map((x, i) => ({ uid: `x${i}`, ...x })) });
+  it('puts each adjunct at the right moment in the checklist', () => {
+    const a = withSpices([{ spiceId: 'phenylalanine', grams: 2 }, { spiceId: 'oak-fr-cubes', grams: 25 }, { spiceId: 'tannin-chestnut', grams: 1 }, { spiceId: 'bentonite', grams: 5 }]);
+    const steps = brewDaySteps(a, fmt);
+    const at = (id: string) => steps.find((s) => s.id === id)!;
+    expect(at('spice-x0').phase).toBe('brew');
+    expect(steps.findIndex((s) => s.id === 'spice-x0')).toBeLessThan(steps.findIndex((s) => s.id === 'pitch'));
+    expect(at('spice-x1').phase).toBe('secondary');
+    expect(at('spice-x1').detail).toMatch(/28–84 days/);
+    expect(at('spice-x2').detail).toMatch(/Dissolve/);
+    expect(at('spice-x3').phase).toBe('finish');
+  });
+  it('tannin powders and woods add structure; process aids add no flavour', () => {
+    const base = withSpices([]).profile;
+    const tannin = withSpices([{ spiceId: 'tannin-chestnut', grams: 1 }]).profile;
+    const aid = withSpices([{ spiceId: 'bentonite', grams: 5 }]).profile;
+    const phe = withSpices([{ spiceId: 'phenylalanine', grams: 2 }]).profile;
+    expect(tannin.Tannin).toBeGreaterThan(base.Tannin + 2);
+    expect(aid).toEqual(base);
+    expect(phe.Floral).toBeGreaterThan(base.Floral);
+    expect(phe.Spice).toBe(base.Spice);
+  });
+  it('L-phenylalanine bands follow the 0.14–0.28 g/L practice range', async () => {
+    const { spiceById } = await import('../db');
+    const p = spiceById('phenylalanine');
+    expect([p.subtle, p.bold]).toEqual([0.14, 0.28]);
+  });
+  it('a sweet mead with a tannin powder no longer gets the “add structure” tip', () => {
+    const sweet = { ...DEFAULT_RECIPE, fruits: [], targetFg: 1.02 };
+    const ids = (sp: { spiceId: string; grams: number }[]) => analyzeRecipe({ ...sweet, spices: sp.map((x, i) => ({ uid: `t${i}`, ...x })) }).advisories.map((x) => x.id);
+    expect(ids([])).toContain('tannin-sweet');
+    expect(ids([{ spiceId: 'tannin-grape', grams: 0.8 }])).not.toContain('tannin-sweet');
+  });
+});
+
+describe('shopping list (SPEC §31)', async () => {
+  const { shoppingList, shoppingText } = await import('../shopping');
+  const fmt = { vol: (l: number) => `${l.toFixed(2)} L`, mass: (kg: number) => `${kg.toFixed(2)} kg` };
+  it('lists honey, yeast sachets, nutrient totals, additions and kit', () => {
+    const a = analyzeRecipe({ ...DEFAULT_RECIPE, targetFg: 1.012, adjustments: [{ uid: 'a1', id: 'tartaric', grams: 4, stage: 'finished' }] });
+    const g = shoppingList(a, fmt);
+    const all = g.flatMap((x) => x.items);
+    expect(all.find((i) => i.id === 'h-h1')?.amount).toBe('3.00 kg');
+    expect(all.find((i) => i.id === 'yeast')?.amount).toMatch(/^2 × 5 g sachets$/); // 5.3 g needed
+    expect(all.find((i) => i.id === 'fo')?.amount).toBe(`${a.schedule.totals.fermaidO.toFixed(1)} g`);
+    expect(all.some((i) => i.id === 'sorbate')).toBe(true);
+    expect(all.find((i) => i.id === 'ad-a1')?.name).toBe('Tartaric acid');
+    expect(shoppingText('Test', g)).toMatch(/☐ Wildflower honey: 3\.00 kg/);
+  });
+});

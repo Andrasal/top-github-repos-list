@@ -142,7 +142,7 @@ export function advise(x: FlavorInput): { advisories: Advisory[]; suggestions: S
 
   // §8.3 Tannin & structure
   const tannicFruit = x.fruits.some((f) => f.fruit.tannin >= 2);
-  const tannicSpice = x.spices.some((s) => s.spice.id === 'oak' || s.spice.id === 'cacao' || s.spice.id === 'coffee');
+  const tannicSpice = x.spices.some((s) => (s.spice.tannin ?? 0) > 0);
   if ((x.sweetness === 'sweet' || x.sweetness === 'dessert') && !tannicFruit && !tannicSpice) {
     out.push({ id: 'tannin-sweet', severity: 'tip', category: 'tannin', title: 'Add structure to carry the sweetness', detail: 'Residual sugar with no tannin source tends to read as cloying.', suggestion: 'Add 0.1–0.3 g/L wine tannin or 2–4 g/L medium-toast oak cubes.', source: ['practice'] });
   }

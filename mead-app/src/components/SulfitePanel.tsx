@@ -2,6 +2,7 @@ import type { Analysis, Recipe, SulfiteSettings } from '../lib/recipe';
 import { DEFAULT_SULFITE } from '../lib/recipe';
 import { freeForMolecular, SULFITE_FORMS, SulfiteForm } from '../lib/sulfite';
 import { SO2_LIMIT_EU_MEAD, SO2_LIMIT_US_TOTAL } from '../lib/constants';
+import { ExpertOnly, MoreDetail, useExpert } from './detail';
 import { Card, Cite, NumberField, Select, Stat, Tip } from './ui';
 import type { UnitHelpers } from './units';
 
@@ -11,7 +12,33 @@ export function SulfitePanel({ r, set, a, uh }: { r: Recipe; set: (p: Partial<Re
   const so: SulfiteSettings = { ...DEFAULT_SULFITE, ...r.sulfite };
   const upd = (p: Partial<SulfiteSettings>) => set({ sulfite: { ...so, ...p } });
   const p = a.sulfite;
+  const expert = useExpert();
   const totalPct = Math.min(100, (p.after.totalPpm / SO2_LIMIT_US_TOTAL) * 100);
+  const advanced = (
+    <>
+        <NumberField label="Current free SO₂" value={so.currentFreePpm} onChange={(v) => upd({ currentFreePpm: v })} unit="mg/L" step={1} decimals={0}
+          hint="From titration (aeration-oxidation or Ripper) or a test kit. Use 0 for a fresh ferment." />
+        <NumberField label="Current total SO₂" value={so.currentTotalPpm} onChange={(v) => upd({ currentTotalPpm: v })} unit="mg/L" step={1} decimals={0} />
+        <div className="flex flex-col gap-1">
+          <NumberField label="Target molecular" value={so.targetMolecularPpm} onChange={(v) => upd({ targetMolecularPpm: v })} unit="mg/L" step={0.05} min={0.2} max={2} decimals={2}
+            hint="0.8 mg/L for light, fruity or sweet meads. 0.5 for tannic or red meads. Above ~1.5 it can be smelt." />
+          <div className="flex gap-1">
+            {[0.5, 0.8].map((v) => (
+              <button key={v} className={`btn-ghost px-2 py-0.5 text-xs ${so.targetMolecularPpm === v ? 'bg-honey-100 dark:bg-honey-900/40' : ''}`} onClick={() => upd({ targetMolecularPpm: v })}>{v}</button>
+            ))}
+          </div>
+        </div>
+        <NumberField label="Binding of addition" value={so.bindingPct} onChange={(v) => upd({ bindingPct: v })} unit="%" step={5} min={0} max={80} decimals={0}
+          hint="Part of each addition binds right away to acetaldehyde, sugars and keto-acids. The first addition after fermentation often loses 25–50 %. Later additions lose less." />
+        <label className="col-span-2 flex items-center gap-2 text-sm sm:col-span-3">
+          <input type="checkbox" checked={so.volumeOverrideL == null} onChange={(e) => upd({ volumeOverrideL: e.target.checked ? null : Number(p.input.volumeL.toFixed(2)) })} />
+          Treat expected recovered volume ({uh.fmtVol(so.volumeOverrideL == null ? p.input.volumeL : a.occupancy.recoveredL)})
+        </label>
+        {so.volumeOverrideL != null && (
+          <NumberField label="Volume to treat" value={so.volumeOverrideL} onChange={(v) => upd({ volumeOverrideL: v })} {...uh.vol} decimals={2} />
+        )}
+    </>
+  );
   return (
     <Card title="Sulfite & Stabilisation" icon="🧂" id="sulfite">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -27,40 +54,21 @@ export function SulfitePanel({ r, set, a, uh }: { r: Recipe; set: (p: Partial<Re
             I measured it
           </label>
         </div>
-        <NumberField label="Current free SO₂" value={so.currentFreePpm} onChange={(v) => upd({ currentFreePpm: v })} unit="mg/L" step={1} decimals={0}
-          hint="From titration (aeration-oxidation or Ripper) or a test kit. Use 0 for a fresh ferment." />
-        <NumberField label="Current total SO₂" value={so.currentTotalPpm} onChange={(v) => upd({ currentTotalPpm: v })} unit="mg/L" step={1} decimals={0} />
-        <div className="flex flex-col gap-1">
-          <NumberField label="Target molecular" value={so.targetMolecularPpm} onChange={(v) => upd({ targetMolecularPpm: v })} unit="mg/L" step={0.05} min={0.2} max={2} decimals={2}
-            hint="0.8 mg/L for light, fruity or sweet meads. 0.5 for tannic or red meads. Above ~1.5 it can be smelt." />
-          <div className="flex gap-1">
-            {[0.5, 0.8].map((v) => (
-              <button key={v} className={`btn-ghost px-2 py-0.5 text-xs ${so.targetMolecularPpm === v ? 'bg-honey-100 dark:bg-honey-900/40' : ''}`} onClick={() => upd({ targetMolecularPpm: v })}>{v}</button>
-            ))}
-          </div>
-        </div>
-        <NumberField label="Binding of addition" value={so.bindingPct} onChange={(v) => upd({ bindingPct: v })} unit="%" step={5} min={0} max={80} decimals={0}
-          hint="Part of each addition binds right away to acetaldehyde, sugars and keto-acids. The first addition after fermentation often loses 25–50 %. Later additions lose less." />
+{expert && advanced}
         <Select<SulfiteForm> label="Product" value={so.form} onChange={(form) => upd({ form })}
           options={(Object.keys(SULFITE_FORMS) as SulfiteForm[]).map((k) => ({ value: k, label: SULFITE_FORMS[k].label }))} />
-        <label className="col-span-2 flex items-center gap-2 text-sm sm:col-span-3">
-          <input type="checkbox" checked={so.volumeOverrideL == null} onChange={(e) => upd({ volumeOverrideL: e.target.checked ? null : Number(p.input.volumeL.toFixed(2)) })} />
-          Treat expected recovered volume ({uh.fmtVol(so.volumeOverrideL == null ? p.input.volumeL : a.occupancy.recoveredL)})
-        </label>
-        {so.volumeOverrideL != null && (
-          <NumberField label="Volume to treat" value={so.volumeOverrideL} onChange={(v) => upd({ volumeOverrideL: v })} {...uh.vol} decimals={2} />
-        )}
         <Select<'auto' | 'on' | 'off'> label="Potassium sorbate" value={so.sorbate == null ? 'auto' : so.sorbate ? 'on' : 'off'}
           onChange={(v) => upd({ sorbate: v === 'auto' ? null : v === 'on' })}
           options={[{ value: 'auto', label: `Auto (${r.targetFg != null ? 'on: back-sweetening' : 'off'})` }, { value: 'on', label: 'Add' }, { value: 'off', label: 'None' }]} />
       </div>
+      {!expert && <div className="mt-3"><MoreDetail label="Adjust: current SO₂, target, binding and volume"><div className="grid grid-cols-2 gap-3">{advanced}</div></MoreDetail></div>}
 
       <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-        <Stat label="Free SO₂ needed" value={`${p.requiredFreePpm.toFixed(0)} mg/L`} sub={`${(p.molecularFraction * 100).toFixed(2)} % molecular at pH ${p.input.pH.toFixed(2)} · pKa ${p.pKa.toFixed(2)} (${p.input.abv.toFixed(1)} % ABV)`} />
+        <ExpertOnly><Stat label="Free SO₂ needed" value={`${p.requiredFreePpm.toFixed(0)} mg/L`} sub={`${(p.molecularFraction * 100).toFixed(2)} % molecular at pH ${p.input.pH.toFixed(2)} · pKa ${p.pKa.toFixed(2)} (${p.input.abv.toFixed(1)} % ABV)`} /></ExpertOnly>
         <Stat label="Add" tone="accent" value={`${p.productGrams.toFixed(2)} g`} sub={`${p.additionPpm.toFixed(0)} mg/L SO₂ · ${SULFITE_FORMS[so.form].label.split(' (')[0]}`} />
         <Stat label="Alternatives" value={`${p.campdenTablets.toFixed(1)} tabs`} sub={`Campden · or ${p.stockSolutionMl.toFixed(1)} mL of 10 % K-meta stock`} />
-        <Stat label="Free after" value={`${p.after.freePpm.toFixed(0)} mg/L`} sub={`was ${so.currentFreePpm.toFixed(0)}`} />
-        <Stat label="Molecular after" value={`${p.after.molecularPpm.toFixed(2)} mg/L`} sub={`was ${p.currentMolecularPpm.toFixed(2)}`} />
+        <ExpertOnly><Stat label="Free after" value={`${p.after.freePpm.toFixed(0)} mg/L`} sub={`was ${so.currentFreePpm.toFixed(0)}`} /></ExpertOnly>
+        <ExpertOnly><Stat label="Molecular after" value={`${p.after.molecularPpm.toFixed(2)} mg/L`} sub={`was ${p.currentMolecularPpm.toFixed(2)}`} /></ExpertOnly>
         <Stat label="Total after" value={`${p.after.totalPpm.toFixed(0)} mg/L`} sub={`${p.after.boundPpm.toFixed(0)} bound · limits US ${SO2_LIMIT_US_TOTAL} / EU ${SO2_LIMIT_EU_MEAD}`} />
       </div>
       <div className="mt-2" aria-label="Total SO2 against the US limit">
@@ -98,10 +106,10 @@ export function SulfitePanel({ r, set, a, uh }: { r: Recipe; set: (p: Partial<Re
         ))}
       </ul>
       </details>
-      <p className="mt-2 flex items-center gap-1 text-xs text-stone-500">
+<ExpertOnly>      <p className="mt-2 flex items-center gap-1 text-xs text-stone-500">
         molecular = free ÷ (1 + 10^(pH − pKa)), with pKa from the OIV table for your ABV · K-meta is 57.6 % SO₂
         <Tip>2 × 64.07 g/mol SO₂ per 222.32 g/mol K₂S₂O₅. Dissolve the dose in a little water or mead, stir it in gently, and re-measure free SO₂ after 24–48 h.</Tip>
-      </p>
+      </p></ExpertOnly>
     </Card>
   );
 }

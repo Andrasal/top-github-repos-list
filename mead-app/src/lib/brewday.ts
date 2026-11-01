@@ -34,6 +34,10 @@ export function brewDaySteps(a: Analysis, f: Fmt): Step[] {
   }
   if (r.mode === 'targetVolume') s.push({ id: 'topup', phase: 'brew', text: `Top up with water to ${f.vol(a.primary.volumeL)} of must` });
   s.push({ id: 'og', phase: 'brew', text: `Take a hydrometer reading: aim for OG ${a.og.toFixed(3)}`, detail: 'Log it on the Batch log so ABV and the sugar breaks use your real number.' });
+  const used = r.spices.filter((x) => x.grams > 0).map((x) => ({ x, sp: spiceById(x.spiceId) }));
+  for (const { x, sp } of used.filter((u) => u.sp.addAt === 'pitch')) {
+    s.push({ id: `spice-${x.uid}`, phase: 'brew', text: `Add ${g(x.grams)} of ${sp.name}`, detail: sp.use });
+  }
   const rh = a.rehydration;
   s.push({ id: 'pitch', phase: 'brew', text: `Rehydrate ${g(rh.yeastG)} of ${a.yeast.name} with ${g(rh.goFermG)} Go-Ferm and pitch`, detail: `Go-Ferm in ${rh.waterMl.toFixed(0)} mL of water at ${rh.waterTempC} °C, yeast in for 15–20 min, then pitch. Ferment at ${a.yeast.tempC[0]}–${a.yeast.tempC[1]} °C.` });
   s.push({ id: 'airlock', phase: 'brew', text: 'Fit the lid and an airlock filled with sanitiser' });
@@ -48,12 +52,22 @@ export function brewDaySteps(a: Analysis, f: Fmt): Step[] {
 
   s.push({ id: 'rack1', phase: 'secondary', text: `Rack off the lees into a clean vessel (expect about ${f.vol(a.occupancy.recoveredL)})` });
   for (const x of r.fruits.filter((x) => x.stage === 'secondary' && x.massKg > 0)) s.push({ id: `fruit2-${x.uid}`, phase: 'secondary', text: `Add ${f.mass(x.massKg)} of ${fruitById(x.fruitId).name.toLowerCase()} for 1–3 weeks` });
-  for (const x of r.spices.filter((x) => x.grams > 0)) {
-    const sp = spiceById(x.spiceId);
-    s.push({ id: `spice-${x.uid}`, phase: 'secondary', text: `Add ${g(x.grams)} of ${sp.name.toLowerCase()} in a sanitised bag`, detail: `Taste every 2–3 days; usually ${sp.contactDays[0]}–${sp.contactDays[1]} days. Remove when it tastes right.` });
+  for (const { x, sp } of used.filter((u) => (u.sp.addAt ?? 'secondary') === 'secondary')) {
+    if (sp.group === 'tannin') {
+      s.push({ id: `spice-${x.uid}`, phase: 'secondary', text: `Add ${g(x.grams)} of ${sp.name.toLowerCase()}`, detail: sp.use });
+    } else {
+      const wood = sp.group === 'wood';
+      s.push({
+        id: `spice-${x.uid}`, phase: 'secondary', text: `Add ${g(x.grams)} of ${sp.name.toLowerCase()}${wood ? '' : ' in a sanitised bag'}`,
+        detail: `${wood ? 'Sanitise by steaming or a quick soak, then add. ' : ''}Taste from day ${sp.contactDays[0]}; usually ${sp.contactDays[0]}–${sp.contactDays[1]} days. Remove when it tastes right.`,
+      });
+    }
   }
   s.push({ id: 'clear', phase: 'secondary', text: 'Let it clear and age; rack again whenever a layer of sediment forms' });
 
+  for (const { x, sp } of used.filter((u) => u.sp.addAt === 'clearing')) {
+    s.push({ id: `spice-${x.uid}`, phase: 'finish', text: `Fine with ${g(x.grams)} of ${sp.name.toLowerCase()}`, detail: sp.use });
+  }
   const so = a.sulfite;
   if (so.productGrams > 0) s.push({ id: 'so2', phase: 'finish', text: `Stabilise: ${so.productGrams.toFixed(2)} g K-meta (or equivalent) for ${f.vol(so.input.volumeL)}`, detail: `Brings free SO₂ to about ${so.after.freePpm.toFixed(0)} mg/L at pH ${so.input.pH.toFixed(2)}.` });
   if (so.sorbate) s.push({ id: 'sorbate', phase: 'finish', text: `Add ${g(so.sorbate.grams)} potassium sorbate with the sulfite`, detail: 'Only stops yeast multiplying; it cannot stop an active ferment.' });

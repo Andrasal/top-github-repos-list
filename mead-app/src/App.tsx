@@ -4,7 +4,7 @@ import type { UnitSystem } from './lib/units';
 import { EMPTY_LOG, trackerStatus } from './lib/tracker';
 import { collectFlags } from './lib/flags';
 import { BatchPanel } from './components/BatchPanel';
-import { BotanicalPanel, FermentablesPanel, FruitPanel } from './components/IngredientsPanel';
+import { FermentablesPanel, FruitPanel } from './components/IngredientsPanel';
 import { ResultsPanel } from './components/ResultsPanel';
 import { NutrientPanel } from './components/NutrientPanel';
 import { AdvisorPanel } from './components/AdvisorPanel';
@@ -19,7 +19,6 @@ import { Modal } from './components/ui';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useLibrary } from './components/useLibrary';
 import { LibraryPanel } from './components/LibraryPanel';
-import { DraftBar } from './components/DraftBar';
 import { ChatPanel } from './components/ChatPanel';
 import { useAiSettings } from './components/AiConnect';
 import { createEntry, deriveEntry, LibraryEntry, normaliseRecipe } from './lib/library';
@@ -30,9 +29,14 @@ import { BacksweetenPanel } from './components/BacksweetenPanel';
 import { BrewDayPanel } from './components/BrewDayPanel';
 import { BottlePanel, GlassSvg, PrintSheet } from './components/BottlePanel';
 import { PAGES, PageId, GuideBox } from './components/Pages';
+import { AdditionsPanel } from './components/AdditionsPanel';
+import { ShoppingCard } from './components/ShoppingCard';
+import { AppMenu, type Theme } from './components/AppMenu';
+import { DetailContext, type Detail } from './components/detail';
+import { PresetPicker } from './components/PresetPicker';
 
 const STORE = 'mead-lab:v1';
-type ModalId = null | 'proof' | 'sources' | 'calc' | 'export' | 'check' | 'library' | 'chat';
+type ModalId = null | 'proof' | 'sources' | 'calc' | 'export' | 'check' | 'library' | 'chat' | 'reset';
 
 interface Loaded { recipe: Recipe; units: UnitSystem; baseId: string | null; dirty: boolean }
 function load(): Loaded {
@@ -54,12 +58,11 @@ function load(): Loaded {
 }
 
 const UI_STORE = 'mead-lab:ui:v1';
-type Theme = 'auto' | 'light' | 'dark';
-function loadUi(): { page: PageId; guide: boolean; theme: Theme } {
+function loadUi(): { page: PageId; guide: boolean; theme: Theme; detail: Detail } {
   try {
     const p = JSON.parse(localStorage.getItem(UI_STORE) ?? '{}');
-    return { page: PAGES.some((x) => x.id === p.page) ? p.page : 'plan', guide: p.guide ?? true, theme: ['light', 'dark'].includes(p.theme) ? p.theme : 'auto' };
-  } catch { return { page: 'plan', guide: true, theme: 'auto' }; }
+    return { page: PAGES.some((x) => x.id === p.page) ? p.page : 'plan', guide: p.guide ?? true, theme: ['light', 'dark'].includes(p.theme) ? p.theme : 'auto', detail: p.detail === 'expert' ? 'expert' : 'simple' };
+  } catch { return { page: 'plan', guide: true, theme: 'auto', detail: 'simple' }; }
 }
 
 export default function App() {
@@ -71,17 +74,17 @@ export default function App() {
   const [page, setPage] = useState<PageId>(ui.page);
   const [guide, setGuide] = useState(ui.guide);
   const [theme, setTheme] = useState<Theme>(ui.theme);
+  const [detail, setDetail] = useState<Detail>(ui.detail);
   useEffect(() => {
-    try { localStorage.setItem(UI_STORE, JSON.stringify({ page, guide, theme })); } catch { /* ignore */ }
+    try { localStorage.setItem(UI_STORE, JSON.stringify({ page, guide, theme, detail })); } catch { /* ignore */ }
     if (theme === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = theme;
-  }, [page, guide, theme]);
+  }, [page, guide, theme, detail]);
   const go = (id: PageId) => { setPage(id); window.scrollTo({ top: 0, behavior: 'smooth' }); };
   // Keep the current step's pill visible in the scrolling step bar
   useEffect(() => { document.querySelector('nav[aria-label=Steps] [aria-current=step]')?.scrollIntoView({ block: 'nearest', inline: 'center' }); }, [page]);
   // The assistant is locked until the user connects an AI (own key), unless the page runs inside Claude
   const aiKey = useAiSettings();
   const aiLocked = !aiKey && !(window as unknown as { claude?: unknown }).claude;
-  const [confirmReset, setConfirmReset] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   // Draft = an editable COPY. baseId = the saved version it was copied from (never modified).
   const [baseId, setBaseId] = useState<string | null>(initial.baseId);
@@ -164,6 +167,10 @@ export default function App() {
     switch (page) {
       case 'plan':
         return (<>
+          <details open={!base && !dirty && lib.entries.length === 0} className="rounded-xl border border-honey-300 bg-honey-50/50 p-3 dark:border-honey-900 dark:bg-honey-900/10">
+            <summary className="cursor-pointer select-none font-semibold">✨ Start from a proven style <span className="text-xs font-normal text-stone-500">· scaled to your batch, swipe for more</span></summary>
+            <div className="mt-2"><PresetPicker compact current={recipe} onPick={(r) => requestOpen({ ...r, log: recipe.log }, null)} /></div>
+          </details>
           <BatchPanel r={recipe} set={set} replace={replace} uh={uh} />
           <div className="grid gap-4 xl:grid-cols-2">
             <FermentablesPanel r={recipe} set={set} uh={uh} a={analysis} />
@@ -178,10 +185,7 @@ export default function App() {
         </>);
       case 'flavour':
         return (<>
-          <div className="grid gap-4 xl:grid-cols-2">
-            <BotanicalPanel r={recipe} set={set} uh={uh} a={analysis} kind="flowers" />
-            <BotanicalPanel r={recipe} set={set} uh={uh} a={analysis} kind="spices" />
-          </div>
+          <AdditionsPanel r={recipe} set={set} uh={uh} a={analysis} />
           {needs(() => guard("Mead Maker's Brain", (
             <AdvisorPanel
               a={analysis!}
@@ -197,8 +201,11 @@ export default function App() {
         </>));
       case 'brew':
         return needs(() => (<>
+          {recipe.log.pitchedAt == null && <ShoppingCard a={analysis!} uh={uh} defaultOpen={(recipe.brewDay?.done.length ?? 0) === 0} />}
+          {recipe.log.pitchedAt != null && guard('Batch log', <TrackerPanel r={recipe} set={set} a={analysis!} t={tracker!} now={now} />)}
           {guard('Checklist', <BrewDayPanel a={analysis!} r={recipe} set={set} uh={uh} />)}
-          {guard('Batch log', <TrackerPanel r={recipe} set={set} a={analysis!} t={tracker!} now={now} />)}
+          {recipe.log.pitchedAt == null && guard('Batch log', <TrackerPanel r={recipe} set={set} a={analysis!} t={tracker!} now={now} />)}
+          {recipe.log.pitchedAt != null && <ShoppingCard a={analysis!} uh={uh} defaultOpen={false} />}
           <ReadingTools onUse={addReading} />
         </>));
       case 'stabilise':
@@ -218,36 +225,32 @@ export default function App() {
   }
 
   return (
-    <>
+    <DetailContext.Provider value={detail}>
     <div className="no-print mx-auto max-w-6xl px-4 pb-28">
-      <header className="relative z-40 lg:sticky lg:top-0 -mx-4 mb-4 border-b border-stone-200 bg-stone-50/90 px-4 pb-2 pt-3 backdrop-blur dark:border-stone-800 dark:bg-stone-950/90">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="min-w-0">
-            <h1 className="text-lg font-bold tracking-tight">🍯 Mead Lab</h1>
-            <p className="truncate text-xs text-stone-500">{recipe.name}</p>
+      <header className="sticky top-0 z-40 -mx-4 mb-4 border-b border-stone-200 bg-stone-50/95 px-4 pb-2 pt-2 backdrop-blur dark:border-stone-800 dark:bg-stone-950/95">
+        <div className="flex items-center gap-2">
+          <span className="h-8 w-8 shrink-0 rounded-full border-2 border-white shadow ring-1 ring-stone-300 dark:border-stone-800 dark:ring-stone-600" style={{ background: analysis?.color.hex ?? '#e8c56a' }} title={analysis?.color.name} aria-hidden />
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate font-display text-base font-semibold leading-tight">{recipe.name || 'Untitled mead'}</h1>
+            <p className="tabular truncate text-xs text-stone-500">
+              {analysis ? <><b className="text-honey-700 dark:text-honey-300">{analysis.abv.toFixed(1)} %</b> · {analysis.og.toFixed(3)}→{analysis.fg.fg.toFixed(3)}<span className="hidden sm:inline"> · {analysis.sweetness}</span></> : 'Check the recipe'}
+              <span className="hidden text-stone-400 sm:inline"> · {base ? `v${base.version}${dirty ? ' · edited' : ''}` : dirty ? 'not saved' : 'new'}</span>
+            </p>
           </div>
-          <div className="flex flex-wrap items-center gap-1">
-            <button className="btn-ghost relative border border-stone-300 dark:border-stone-700" onClick={() => setModal('check')} aria-label={`Check recipe: ${flags.length} item${flags.length === 1 ? '' : 's'}`}>
-              Check recipe
-              {flags.length > 0 && (
-                <span className={`tabular rounded-full px-1.5 text-[11px] font-bold ${hasError ? 'bg-stone-800 text-white dark:bg-stone-100 dark:text-stone-900' : 'bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-100'}`}>{flags.length}</span>
-              )}
-            </button>
-            <button className="btn-ghost" onClick={() => setModal('library')}>Recipes</button>
-            <button className="btn-primary" onClick={() => setModal('export')} disabled={!analysis}>Export</button>
-          </div>
+          <button className="btn-ghost h-9 shrink-0 border border-stone-300 px-2 dark:border-stone-700" onClick={() => setModal('check')} aria-label={`Check recipe: ${flags.length} item${flags.length === 1 ? '' : 's'}`}>
+            {flags.length === 0 ? '✓' : <span className={`tabular rounded-full px-1.5 text-[11px] font-bold ${hasError ? 'bg-stone-800 text-white dark:bg-stone-100 dark:text-stone-900' : 'bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-100'}`}>{flags.length}</span>}
+            <span className="hidden sm:inline">Check</span>
+          </button>
+          {(dirty || !base) && (
+            <button className="btn-primary h-9 shrink-0" disabled={saving} onClick={() => saveDraft(!base)}>{base ? `Save v${nextVersion}` : 'Save'}</button>
+          )}
+          <button type="button" onClick={() => setModal('chat')} aria-label={aiLocked ? 'Recipe assistant (connect your AI to unlock)' : 'Recipe assistant'}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-stone-900 text-white sm:hidden dark:bg-honey-400 dark:text-stone-950">✨</button>
+          <AppMenu units={units} setUnits={setUnits} detail={detail} setDetail={setDetail} guide={guide} setGuide={setGuide} theme={theme} setTheme={setTheme}
+            onRecipes={() => setModal('library')} onExport={() => setModal('export')} onSaveNew={base ? () => void saveDraft(true) : undefined}
+            onCalc={() => setModal('calc')} onSources={() => setModal('sources')} onReset={() => setModal('reset')} />
         </div>
-        {analysis && (
-          <div className="tabular mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-            <span><span className="text-stone-500">OG</span> <b>{analysis.og.toFixed(3)}</b></span>
-            <span><span className="text-stone-500">FG</span> <b>{analysis.fg.fg.toFixed(3)}</b></span>
-            <span><span className="text-stone-500">ABV</span> <b className="text-honey-700 dark:text-honey-300">{analysis.abv.toFixed(1)} %</b></span>
-            <span className="capitalize text-stone-600 dark:text-stone-300">{analysis.sweetness}</span>
-            <span className="inline-block h-3 w-3 rounded-full border border-stone-300 dark:border-stone-600" style={{ background: analysis.color.hex }} title={analysis.color.name} aria-hidden />
-          </div>
-        )}
-        <DraftBar base={base} nextVersion={nextVersion} dirty={dirty} saving={saving} onSaveVersion={() => saveDraft(false)} onSaveNew={() => saveDraft(true)} />
-        <nav className="-mx-1 mt-2 flex gap-1 overflow-x-auto pb-1 text-xs" aria-label="Steps">
+        <nav className="-mx-1 mt-2 flex gap-1 overflow-x-auto pb-0.5 text-xs" aria-label="Steps">
           {PAGES.map((p, i) => (
             <button key={p.id} type="button" onClick={() => go(p.id)} aria-current={page === p.id ? 'step' : undefined}
               className={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 font-medium transition ${page === p.id ? 'bg-honey-500 text-stone-950 shadow' : 'bg-stone-200/70 text-stone-700 hover:bg-honey-200 dark:bg-stone-800 dark:text-stone-200 dark:hover:bg-honey-900/50'}`}>
@@ -255,20 +258,6 @@ export default function App() {
             </button>
           ))}
         </nav>
-        <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs">
-          <span className="text-stone-500">Stage: <b className="text-honey-700 dark:text-honey-300">{current.phase}</b> · step {pageIndex + 1} of {PAGES.length}</span>
-          <span className="flex items-center gap-1">
-            <button type="button" onClick={() => setGuide((g) => !g)} aria-pressed={guide} className={`rounded-md px-2 py-0.5 font-medium ${guide ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200' : 'bg-stone-200 text-stone-500 dark:bg-stone-800'}`}>🌱 Guide {guide ? 'on' : 'off'}</button>
-            <span className="flex rounded-md bg-stone-200 p-0.5 dark:bg-stone-800" role="group" aria-label="Unit system">
-              {(['metric', 'imperial'] as const).map((u) => (
-                <button key={u} onClick={() => setUnits(u)} aria-pressed={units === u} className={`rounded px-2 py-0.5 font-medium capitalize ${units === u ? 'bg-white shadow dark:bg-stone-600' : 'text-stone-500'}`}>{u}</button>
-              ))}
-            </span>
-            <button type="button" onClick={() => setTheme((t) => (t === 'auto' ? 'light' : t === 'light' ? 'dark' : 'auto'))} className="rounded-md bg-stone-200 px-2 py-0.5 dark:bg-stone-800" aria-label={`Theme: ${theme}`} title={`Theme: ${theme}`}>
-              {theme === 'auto' ? '🌗' : theme === 'light' ? '☀️' : '🌙'}
-            </button>
-          </span>
-        </div>
       </header>
 
       {error && <div className="mb-4 rounded-lg bg-red-100 p-3 text-sm text-red-800 dark:bg-red-950 dark:text-red-200">Calculation error: {error}</div>}
@@ -289,7 +278,7 @@ export default function App() {
         </main>
         <aside className="hidden lg:block">
           {analysis && (
-            <div className="sticky top-44 flex flex-col items-center gap-2 rounded-xl border border-stone-200 bg-white p-4 text-center shadow-sm dark:border-stone-800 dark:bg-stone-900/60">
+            <div className="sticky top-28 flex flex-col items-center gap-2 rounded-xl border border-stone-200 bg-white p-4 text-center shadow-sm dark:border-stone-800 dark:bg-stone-900/60">
               <span className="text-stone-400"><GlassSvg color={analysis.color.hex} size={84} /></span>
               <p className="font-display text-lg font-semibold leading-tight">{recipe.name}</p>
               <p className="text-xs text-stone-500">{analysis.color.name}</p>
@@ -308,22 +297,14 @@ export default function App() {
       </div>
 
       <button onClick={() => setModal('chat')} aria-label={aiLocked ? 'Open the recipe assistant (connect your AI to unlock)' : 'Open the recipe assistant'}
-        className="fixed z-30 flex items-center gap-2 rounded-full bg-stone-900 px-4 py-3 text-sm font-semibold text-white shadow-lg hover:bg-stone-700 dark:bg-honey-400 dark:text-stone-950 dark:hover:bg-honey-300"
-        style={{ right: 'max(16px, calc(env(safe-area-inset-right, 0px) + 16px))', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}>
-        <span aria-hidden>{aiLocked ? '🔒' : '✨'}</span> Ask AI
+        className="fixed z-30 hidden h-12 items-center sm:flex gap-1.5 rounded-full bg-stone-900 px-3.5 text-sm font-semibold text-white shadow-lg ring-2 ring-white/70 hover:bg-stone-700 dark:bg-honey-400 dark:text-stone-950 dark:ring-stone-950/70 dark:hover:bg-honey-300"
+        style={{ right: 'max(12px, calc(env(safe-area-inset-right, 0px) + 12px))', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}>
+        <span aria-hidden>{aiLocked ? '🔒' : '✨'}</span><span>AI</span>
       </button>
       <footer className="mt-8 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-stone-500">
         <span>Guidance, not gospel: verify with a hydrometer, a pH meter and bench trials.</span>
         <button className="underline" onClick={() => setModal('calc')}>ABV calculator</button>
         <button className="underline" onClick={() => setModal('sources')}>Sources & licences</button>
-        {confirmReset ? (
-          <span className="flex items-center gap-1">
-            <button className="btn-primary" onClick={() => { loadIntoEditor(DEFAULT_RECIPE, null); setDirty(false); setConfirmReset(false); }}>Reset the editor</button>
-            <button className="btn-ghost" onClick={() => setConfirmReset(false)}>Cancel</button>
-          </span>
-        ) : (
-          <button className="underline" onClick={() => setConfirmReset(true)}>Reset</button>
-        )}
       </footer>
 
       <Modal open={modal === 'check'} onClose={() => setModal(null)} title="Recipe check">
@@ -354,11 +335,18 @@ export default function App() {
       <Modal open={modal === 'export'} onClose={() => setModal(null)} title="Export to Excel / Google Sheets">
         {analysis && <ExportPanel a={analysis} versionLabel={versionLabel} />}
       </Modal>
+      <Modal open={modal === 'reset'} onClose={() => setModal(null)} title="Start over?">
+        <p className="text-sm text-stone-600 dark:text-stone-300">This clears the editor back to the example recipe. Saved recipes in your library are not touched.</p>
+        <div className="mt-4 flex justify-end gap-2">
+          <button className="btn-ghost" onClick={() => setModal(null)}>Cancel</button>
+          <button className="btn-primary" onClick={() => { loadIntoEditor(DEFAULT_RECIPE, null); setDirty(false); setModal(null); }}>Clear the editor</button>
+        </div>
+      </Modal>
       <Modal open={modal === 'sources'} onClose={() => setModal(null)} title="Sources & citations">
         <SourcesList />
       </Modal>
     </div>
     {analysis && <PrintSheet a={analysis} uh={uh} versionLabel={versionLabel} />}
-    </>
+    </DetailContext.Provider>
   );
 }

@@ -835,3 +835,45 @@ Hosting (static), payments/subscriptions (Stripe, Paddle or Lemon Squeezy), acco
 
 ### 29.1 Gemini prototype review (2026-11-01)
 Reviewed the user's Gemini-built "Mead Lab" (single HTML file). Adopted its best ideas (guided steps, beginner guide, backsweetening, brew-day checklist, print sheet, vessel presets, hydrometer correction, bigger yeast list, calories). Its defects, not carried over: it crashes on load (a value used before it is defined); a blank recipe shows pH 9.50, TA 0 and "11,848 mg/L SO₂"; 40 % spirit density 0.918 instead of 0.948; the Acid page shows the Sulfite page's guide text; AI model list hard-coded rather than read from the key.
+
+## 30. Adjuncts: wood, tannin, aroma precursors, process aids (spices.json)
+Botanical groups are now `spice · floral · herb · adjunct · wood · tannin · aid`, with optional fields `tannin` (structural weight), `axis` (radar axis override), `addAt` (`pitch` | `secondary` | `clearing`) and `use` (checklist instructions). Bands are g/L of finished volume.
+
+| Item | subtle / typical / bold / max (g/L) | When | Basis |
+|---|---|---|---|
+| American / French oak chips (medium toast) | 0.5 / 1.5 / 3 / 5 | secondary, 5–21 days | Supplier guidance: chips extract in 5–14 days |
+| French, Hungarian (medium+), American heavy-toast oak cubes | 1 / 2–2.5 / 3.5–4 / 6 | secondary, 28–84 days | ~3 oz per 6 gal (3.7 g/L) for 4–8 weeks |
+| Bourbon, rum, red-wine barrel chips | 0.5 / 1.5 / 3 / 5 | 7–21 days | as chips |
+| Acacia chips (light toast, tannin 0.5) · cherry wood chips | 0.5 / 1.2–1.5 / 2.5–3 / 4–5 | 5–28 days | practice |
+| Chestnut tannin powder | 0.03 / 0.1 / 0.2 / 0.4 | after fermentation, stays in | Products dose 5–20 g/hL (0.05–0.2 g/L) in mead; up to ~0.5 g/L in primary |
+| Grape tannin · oak (ellagic) tannin | 0.03/0.08/0.15/0.3 · 0.02/0.05/0.1/0.2 | after fermentation | Scott Labs ranges 5–30 g/hL |
+| **L-phenylalanine** | **0.14 / 0.2 / 0.28 / 0.4** | **at pitch** | Mead practice 0.14–0.28 g/L; yeast converts it to 2-phenylethanol (rose, honey) via the Ehrlich pathway (S. Afr. J. Enol. Vitic. 2016). Its N is not credited. Feeds the Floral axis. |
+| Toasted coconut · dry hops | 5/12/25/40 · 0.3/1/2.5/5 | 3–14 · 3–7 days | practice |
+| Pectic enzyme · yeast hulls | 0.1/0.3/0.5/1 · 0.1/0.25/0.4/0.6 | at pitch | practice; not flavours (flavour 0) |
+| Bentonite | 0.25 / 0.5 / 1 / 2 | when clearing | practice; hydrate 24 h, rack after 1–2 weeks |
+
+Effects: woods, tannin powders, cacao and coffee add `dose/typical × tannin` to the Tannin axis and satisfy the "add structure to a sweet mead" rule; process aids change no flavour; the brew-day checklist places each item at pitch, in secondary (wood: "taste from day N") or at clearing.
+
+## 31. Usability review & redesign (2026-11-01)
+### 31.1 Walking through it as a brewer (phone, first visit)
+1. Three rows of controls (actions, save bar, steps, toggles) before any content: ~260 px of a phone screen.
+2. The floating "Ask AI" button covered inputs and numbers on every step.
+3. Expert vocabulary mixed with the basics: volume mode, dry-FG baseline, PKL/PPG, ρ, displacement tables, YAN credit, binding %, molecular SO₂.
+4. The guide pointed to "Style presets" that were hidden inside the library.
+5. Citation chips on nearly every card: useful for auditing, noise for brewing.
+6. Adding a flavour meant scrolling a 50-item dropdown; flowers and spices were split across two cards.
+7. Sulfite: seven inputs before the answer.
+8. Brew day: a 23-step list in one block; the batch log far below.
+9. Missing: "what do I need to buy?"
+
+What the user wants: see ABV and sweetness at all times; start from something that works; one place to add flavour; the grams to weigh today; a shopping list; detail only when asked.
+
+### 31.2 Redesign (implemented)
+* **Compact sticky header** (one row + step bar): colour dot, recipe name, **ABV first** then OG→FG, Check count, Save (only when there is something to save), ✨ assistant (phones) and a **⋯ menu** holding My recipes, Export, Save as new, Units, Detail, Guide, Theme, ABV calculator, Sources, Start over.
+* **Simple / Expert detail level** (menu; Simple by default). Simple keeps what a brewer acts on; workings fold behind "More detail" (results volume/sugar tables, pH tables) or appear only in Expert (volume mode, dry-FG baseline, PKL/PPG lines, YAN credit/N-demand override, nutrient footnote, SO₂ model inputs and formula, citation chips). Nothing is removed.
+* **"Start from a proven style"** strip at the top of step 1 (open on first visit), swipeable, scaled to the batch, guarded by the unsaved-changes dialog.
+* **One "Flavour additions" card** with search (searches every category) and category chips: Flowers & herbs, Spices, Wood & oak, Tannins, Other, Process aids. Each item shows aroma, when it goes in and the typical grams for this batch; rows show the dose meter and timing.
+* **Shopping list** (honey, fruit, yeast sachets, Go-Ferm, nutrient totals, additions, K-meta/Campden, sorbate, acids, kit) with Copy; shown first on Brew day until the yeast is pitched.
+* **Brew day:** "Next up" line; phases fold, the current one opens; once pitched, the batch log moves above the checklist.
+* **Sulfite (Simple):** product, pH and sorbate, then the answer; current SO₂, target, binding and volume under "Adjust".
+* Assistant button lives in the header on phones and as a small floating button on larger screens.
